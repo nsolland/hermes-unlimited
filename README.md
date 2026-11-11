@@ -17,8 +17,6 @@ Create companies. Deploy agents. Deliver services. Grow without limits.
 
 A native [Hermes Agent](https://github.com/NousResearch/hermes-agent) plugin for providers to create and operate AI-native companies and deliver services to their own customers.
 
-**Public Core status: experimental integration, not a production release.**
-
 ## What works
 
 - Installable Hermes plugin with seven native tools and no Hermes core override.
