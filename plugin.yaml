@@ -13,3 +13,5 @@ provides_tools:
   - unlimited_company_list
   - unlimited_service_dispatch
   - unlimited_service_result
+  - unlimited_creative_render
+  - unlimited_creative_result
