@@ -81,13 +81,13 @@ class SocraticCouncil:
             raise CouncilError("Question is required")
         if not isinstance(answers, Mapping):
             raise CouncilError("Socratic answers are required")
-        missing = [key for key, _ in QUESTIONS
-                   if not isinstance(answers.get(key), str) or not answers[key].strip()]
+        # Snapshot answers immediately so later mutation cannot change the reviewed case.
+        snapshot = {key: str(answers.get(key, "")).strip() for key, _ in QUESTIONS}
+        missing = [key for key, val in snapshot.items() if not val]
         if missing:
             raise CouncilError("Missing Socratic answers: " + ", ".join(missing))
 
-        case = json.dumps({"question": question, "socratic_answers": {
-            key: answers[key] for key, _ in QUESTIONS}}, sort_keys=True)
+        case = json.dumps({"question": question, "socratic_answers": snapshot}, sort_keys=True)
         roles = tuple(self.members)
         async def opinion(role: str) -> str:
             return await self.members[role](
@@ -131,18 +131,18 @@ class SocraticCouncil:
         uncertainty = decision.get("uncertainty")
         if not isinstance(synthesis, str) or not synthesis.strip():
             raise CouncilError("Chair synthesis required")
-        if not isinstance(dissent, list) or not all(isinstance(x, str) for x in dissent):
-            raise CouncilError("Chair dissent must be a list of strings")
-        if not isinstance(uncertainty, list) or not all(isinstance(x, str) for x in uncertainty):
-            raise CouncilError("Chair uncertainty must be a list of strings")
+        if not isinstance(dissent, list) or not all(isinstance(x, str) and x.strip() for x in dissent):
+            raise CouncilError("Chair dissent must be a list of non-empty strings")
+        if not isinstance(uncertainty, list) or not all(isinstance(x, str) and x.strip() for x in uncertainty):
+            raise CouncilError("Chair uncertainty must be a list of non-empty strings")
         if status == "DISSENT" and not dissent:
             raise CouncilError("Dissent outcome requires recorded objections")
-        payload = {"question": question, "answers": dict(answers),
+        payload = {"question": question, "answers": snapshot,
                    "independent": independent, "anonymous_critiques": critiques,
                    "synthesis": synthesis, "dissent": dissent,
                    "uncertainty": uncertainty, "status": status}
         digest = hashlib.sha256(json.dumps(payload, sort_keys=True,
                                            ensure_ascii=False).encode()).hexdigest()
-        return CouncilRecord(question, dict(answers), independent, critiques,
+        return CouncilRecord(question, snapshot, independent, critiques,
                              synthesis, tuple(dissent), tuple(uncertainty),
                              status, digest)

@@ -61,6 +61,15 @@ class CouncilTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(CouncilError):
             await council.run("Launch?", self.answers)
 
+
+    async def test_blank_dissent_rejected(self):
+        async def chair(system, prompt):
+            return json.dumps({"status": "DISSENT", "synthesis": "x",
+                               "dissent": [" "], "uncertainty": []})
+        council = SocraticCouncil(self.council.members, chair)
+        with self.assertRaisesRegex(CouncilError, "non-empty"):
+            await council.run("Launch?", self.answers)
+
     def test_one_expert_rejected(self):
         with self.assertRaises(CouncilError):
             SocraticCouncil({"only": lambda a, b: None}, lambda a, b: None)
