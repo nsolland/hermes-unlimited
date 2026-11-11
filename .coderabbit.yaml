@@ -1,0 +1,25 @@
+language: "en-US"
+reviews:
+  profile: "assertive"
+  request_changes_workflow: false
+  high_level_summary: true
+  auto_review:
+    enabled: true
+    drafts: false
+  path_instructions:
+    - path: "unlimited/**"
+      instructions: |
+        Review tenant and provider isolation, JustYou identity verification,
+        fail-closed behavior, duplicate request handling, and SQLite durability.
+        Do not suggest bypassing the trusted Hermes host or adding credentials.
+    - path: "tests/**"
+      instructions: |
+        Check that changes to authorization, tenant boundaries, and Kanban
+        dispatch have focused negative tests. Do not infer live production
+        execution from mocked or offline tests.
+    - path: "**/*"
+      instructions: |
+        This repository is the experimental public core only. Separately
+        licensed extensions and private customer data must stay out.
+        Local green tests are canonical; PR review is advisory, not proof
+        that the Hermes production worker or external effects are verified.
