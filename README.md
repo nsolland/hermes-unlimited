@@ -21,6 +21,8 @@ Create companies. Deploy agents. Deliver services. Grow without limits.
 
 ![The operators — Coder, Tester, Debugger, Deployer, Operator and Janitor](assets/brand/hermes-operators.jpg)
 
+![The Critics — The Skeptic and The Cynic](assets/brand/hermes-critics.jpg)
+
 </details>
 
 A native [Hermes Agent](https://github.com/NousResearch/hermes-agent) plugin for providers to create and operate AI-native companies and deliver services to their own customers.
@@ -66,6 +68,7 @@ The crew is a **role model for work**, not a fixed set of separate models or man
 | **Quality** | Tester, Debugger, Reviewer | Validate results, identify failures, and repair defects. |
 | **Operations** | Deployer, Operator, Janitor, Maintainer | Release and run services, monitor outcomes, clean up stale state, and keep systems healthy. |
 | **Support** | Helper, Specialist | Assist execution with targeted skills and domain knowledge. |
+| **Independent Review &amp; Critique** | The Skeptic, The Cynic | Challenge evidence, assumptions, costs, customer value, and each other's conclusions; report actionable concerns to the Coordinator. |
 
 Roles are envisioned capabilities; the illustrations are a visual identity, not proof of live autonomous execution.
 
