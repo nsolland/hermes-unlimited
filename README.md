@@ -45,7 +45,10 @@ python3 -m unittest discover -s tests -v
 hermes plugins validate . --install-deps
 ```
 
-Local tests are canonical; this repository deliberately has no GitHub Actions workflow.
+Local green tests remain canonical. Public GitHub Actions independently run
+offline unit tests on Python 3.11–3.13 and CodeQL security analysis on pull
+requests. CI results are advisory and do not attest to live Hermes dispatch,
+customer effects, or production readiness. Dependabot checks action updates.
 
 ## Boundary
 
