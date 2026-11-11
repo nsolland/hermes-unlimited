@@ -28,6 +28,34 @@ A native [Hermes Agent](https://github.com/NousResearch/hermes-agent) plugin for
 
 The native tool handles for company creation, service publishing and requests are functional with a trusted JustYou verifier supplied by the Hermes host.
 
+## Future developments
+
+**Our direction: AI-native companies as a service.**
+
+Hermes Unlimited is evolving from a native Hermes plugin into a platform where a provider can **create, operate, and scale AI-native companies for customers**—with people and agents working as one organization.
+
+| Area | What we are building toward |
+| --- | --- |
+| **Captain's Bridge** | One operating cockpit for companies, teams, missions, communications, customers, and results. |
+| **AI Crew** | Coordinated agent roles—helpers, specialists, routers, coordinators, and directors—with clear ownership and handoffs. |
+| **Mission Control** | Goals that persist across sessions, task execution, attention management, retries, completion, and measurable outcomes. |
+| **AI Bridge** | Choice of models, providers, and routing strategies based on capability, latency, budget, and workload. |
+| **Company Memory** | Durable context and organizational learning, with optional integration of The Thread. |
+| **Service Factory** | Turn repeatable agent work into customer-facing services, intake, delivery, and reusable packages. |
+| **Business Engine** | Revenue, cost, AI ROI, billing, and continuous improvement of company economics. |
+| **Communications** | Customer and team interaction through supported phone, email, and messaging channels. |
+| **Integrations & add-ons** | Modular tools, virtual work environments, and optional governance or evidence capabilities. |
+
+### The intended customer journey
+
+1. **Create a company** — define its owner, purpose, customers, services, and operating limits.
+2. **Assemble the crew** — choose agent roles, models, tools, and communication channels.
+3. **Launch missions** — set goals, delegate work, supervise execution, and handle exceptions.
+4. **Harvest outcomes** — collect deliverables, results, costs, and feedback.
+5. **Improve and scale** — reuse what works across customers, services, and companies.
+
+This is the **product direction**, not a statement that every capability above is already shipped in this public repository. The native core and its current scope are described in *What works* and *Boundary* below.
+
 ## Native tools
 
 - `hermes_unlimited_status`
