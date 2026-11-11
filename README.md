@@ -165,6 +165,19 @@ The JustYou canonical Python package (`protocol.authoritative_binding`) must be 
 
 The session token is read from trusted Hermes profile scope or a private file maintained by the session renewer. Do not put credentials, customer data or keys in the plugin repository.
 
+## Tenant-isolated Kanban boards
+
+Hermes Unlimited pins every Kanban create/list operation to a dedicated board computed from the **trusted provider and tenant**. Hermes tenant filtering alone is not a hard isolation boundary; each board has its own SQLite queue and worker scope.
+
+Provision the board **before** dispatch using the provider/tenant values from the trusted Hermes profile:
+
+```bash
+python3 -c 'from unlimited.hermes_kanban import board_for; print(board_for("YOUR_PROVIDER_ID", "YOUR_TENANT_ID"))'
+hermes kanban boards create <printed-board-slug>
+```
+
+Do not set the board to `default` or reuse a board across customers. Missing boards must fail closed; no fallback to the active board. Board provisioning alone is not a proof of worker completion or independent customer-delivery verification.
+
 ## Validate
 
 ```bash
