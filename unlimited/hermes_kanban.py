@@ -3,22 +3,35 @@
 Hermes owns execution. Unlimited submits only after a trusted JustYou
 verification and reads actual task state. No synchronous wait/timeout guessing.
 """
+import hashlib
 import json
 import re
 import subprocess
 
 TASK_ID = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
 ROLE_ID = re.compile(r"^[a-z][a-z0-9-]{1,63}$")
+BOARD_ID = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
+
+
+def board_for(provider, tenant):
+    """Derive an isolated Hermes board from trusted provider and tenant scope."""
+    if not all(isinstance(v, str) and ROLE_ID.fullmatch(v) for v in (provider, tenant)):
+        raise ValueError("SCOPE_INVALID")
+    digest = hashlib.sha256(f"{provider}\0{tenant}".encode("utf-8")).hexdigest()[:24]
+    return f"unlimited-{digest}"
 
 
 class HermesKanban:
-    def __init__(self, hermes="hermes", run=None):
+    def __init__(self, hermes="hermes", run=None, board=None):
         self.hermes = hermes
         self.run = run or subprocess.run
+        if not isinstance(board, str) or not BOARD_ID.fullmatch(board) or board == "default":
+            raise ValueError("ISOLATED_BOARD_REQUIRED")
+        self.board = board
 
     def _invoke(self, args):
         try:
-            result = self.run([self.hermes, "kanban", *args], capture_output=True,
+            result = self.run([self.hermes, "kanban", "--board", self.board, *args], capture_output=True,
                               text=True, timeout=45)
             if result.returncode != 0:
                 raise RuntimeError("HERMES_KANBAN_FAILED")
