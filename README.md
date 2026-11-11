@@ -144,16 +144,26 @@ This is the **product direction**, not a statement that every capability above i
 
 ## Trusted profile setup
 
-This plugin requires the Hermes host to provide `ctx.justyou_session_store` and `ctx.justyou_resolver` from the canonical JustYou implementation. The plugin cannot create these objects, and refuses execution without them. The Hermes secret scope must provide:
+The plugin accepts trusted JustYou objects injected by Hermes (`ctx.justyou_session_store`, `ctx.justyou_resolver`) or connects to the canonical JustYou service through a loopback-only session validator and signed profile-binding cache. It fails closed if either verification is unavailable. Hermes profile-scoped secrets must provide:
 
 - `HERMES_UNLIMITED_PROVIDER_ID`
 - `HERMES_UNLIMITED_TENANT_ID`
 - `HERMES_UNLIMITED_JUSTYOU_IDENTITY`
-- `HERMES_UNLIMITED_JUSTYOU_SESSION_TOKEN`
+- `HERMES_UNLIMITED_JUSTYOU_SESSION_TOKEN` or `HERMES_UNLIMITED_JUSTYOU_SESSION_TOKEN_FILE` (private mode `0600`, reread on each operation)
 - `HERMES_UNLIMITED_REGISTRY_DB`
 - Optional `HERMES_UNLIMITED_HERMES_CLI`
 
-The JustYou session token is read only through `agent.secret_scope.get_secret`. Do not put credentials, customer data or keys in the plugin repository.
+Without host injection, configure these additional profile-scoped values:
+
+- `HERMES_UNLIMITED_JUSTYOU_REGISTRY_URL` (`http://127.0.0.1:<port>` only)
+- `JUSTYOU_BINDINGS_FILE` (private, signed JustYou binding export)
+- `JUSTYOU_AUTHORITY_KEY_ID`
+- `JUSTYOU_AUTHORITY_KEY_FILE` (private, public verification key for Ed25519)
+- Optional `JUSTYOU_AUTHORITY_KIND` (defaults to `ed25519`; `hmac` only for explicitly configured prototype deployments)
+
+The JustYou canonical Python package (`protocol.authoritative_binding`) must be installed into the Hermes runtime. A bindings JSON file is a cache; every binding and version announcement is signature-verified, and every operation revalidates the active session. No JustYou material is bundled with this repository.
+
+The session token is read from trusted Hermes profile scope or a private file maintained by the session renewer. Do not put credentials, customer data or keys in the plugin repository.
 
 ## Validate
 

@@ -58,15 +58,20 @@ def register(ctx):
 
     def scoped_identity():
         JustYouVerifier, _ = _modules()
+        try:
+            from .unlimited.justyou_host import trusted_components
+        except ImportError:
+            from unlimited.justyou_host import trusted_components
         tenant = scoped_secret("HERMES_UNLIMITED_TENANT_ID", "")
         expected = scoped_secret("HERMES_UNLIMITED_JUSTYOU_IDENTITY", "")
-        token = scoped_secret("HERMES_UNLIMITED_JUSTYOU_SESSION_TOKEN", "")
         if not tenant or not expected:
             raise PermissionError("PROFILE_SCOPE_NOT_CONFIGURED")
+        try:
+            store, resolver, token = trusted_components(ctx, scoped_secret)
+        except (OSError, ValueError, ImportError, TypeError) as exc:
+            raise PermissionError("JUSTYOU_HOST_UNAVAILABLE") from exc
         verifier = JustYouVerifier(
-            getattr(ctx, "justyou_session_store", None),
-            getattr(ctx, "justyou_resolver", None),
-            ctx.profile_name, token)
+            store, resolver, ctx.profile_name, token)
         evidence = verifier.verify()
         if evidence.get("verified") is not True or evidence.get("identity") != expected:
             raise PermissionError("JUSTYOU_NOT_VERIFIED")
