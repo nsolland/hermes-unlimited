@@ -1,0 +1,7 @@
+name: hermes-unlimited
+kind: standalone
+version: 0.1.0-skeleton
+description: Native Hermes plugin for AI-native company enablement (public skeleton)
+requires_hermes: ">=0.21.5"
+provides_tools:
+  - hermes_unlimited_status
