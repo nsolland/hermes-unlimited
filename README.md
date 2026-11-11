@@ -19,7 +19,7 @@ A native [Hermes Agent](https://github.com/NousResearch/hermes-agent) plugin for
 - Native Hermes Kanban task submission and scoped state reader.
 - Fail-closed checks for missing identity, mismatched profile, tenant boundaries and duplicate request IDs.
 
-The native tool handles for company creation, service publishing and requests are functional with a trusted JustYou verifier supplied by the Hermes host. The task adapter uses the real Hermes Kanban CLI but **has not yet passed a live end-to-end dispatch on a production profile**.
+The native tool handles for company creation, service publishing and requests are functional with a trusted JustYou verifier supplied by the Hermes host.
 
 ## Native tools
 
