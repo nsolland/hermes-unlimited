@@ -72,6 +72,42 @@ The crew is a **role model for work**, not a fixed set of separate models or man
 
 Roles are envisioned capabilities; the illustrations are a visual identity, not proof of live autonomous execution.
 
+
+### The Humor Gallery — serious AI, ridiculous personalities
+
+**The Humor Gallery** is an original cast of comic AI work archetypes. Their job is to reveal real organizational failure modes through short, memorable scenes and, eventually, optional evaluation routines. Characters are original; classic comedy is **inspiration for the failure mode**, not a source of copied scripts, likenesses, voices, or character designs. The gallery is a **creative concept**, not a claim that these runtime agents are implemented.
+
+| Original character | Comedy inspiration | Practical responsibility | Expected output |
+| --- | --- | --- | --- |
+| **The Critics: The Skeptic & The Cynic** | Theatrical balcony critics (Statler & Waldorf) | Independently question evidence, assumptions, cost and customer value. | Specific objections and recommended verification. |
+| **The Reality Checker** | Monty Python's *Dead Parrot* | Compare cheerful status claims with real observations and effects. | Claim-versus-observation discrepancy with supporting evidence. |
+| **The Confused: The Literalist & The Interpreter** | Abbott & Costello's *Who's on First?* and The Two Ronnies' *Four Candles* | Expose ambiguous names, instructions, ownership, and handoffs before work starts. | Clarification questions, unambiguous restatement, and examples. |
+| **The Bureaucrat** | *Yes Minister* | Detect procedural loops, circular approvals, and administrative delay. | List of unnecessary gates and a simpler permitted path. |
+| **The Boundary Tester** | Wesensteen's submarine captain | Challenge assumptions about borders, scope and hidden operating constraints. | Boundary cases and concrete negative tests. |
+| **The Normality Inspector** | Leif Juster's *Mot normalt* | Notice deviations that teams have normalized or stopped questioning. | Anomaly report and baseline comparison. |
+| **The Overconfident Expert** | *Fleksnes* | Stress-test unjustified confidence and unsupported competence claims. | Confidence calibration questions and missing-proof list. |
+| **The Misinterpreter** | Wesensteen's *Hos tannlegen* and verbal misunderstandings | Catch situations where participants agree on words but mean different things. | Terminology conflicts and clarified intent. |
+| **The Contrarian** | Monty Python's *Argument Clinic* | Test whether disagreement contains reasoning or is merely opposition. | Steelmanned counterargument with a falsification test. |
+| **The Obstruction Detector** | British bureaucratic satire | Distinguish necessary controls from process that prevents delivery. | Delay cause, accountable owner, and actionable simplification. |
+| **The Improvisers** | Swedish *Macken* (Roy & Roger) | Explore low-cost practical workarounds when the standard route fails. | Bounded alternative proposal with assumptions and trade-offs. |
+| **The Logical Satirist** | Hasse & Tage | Apply a claim's logic consistently to expose contradictions. | Counterexample or contradiction. |
+| **The Obsolescence Inspector** | Galenskaparna's *Stinsen brinner* | Identify workflows kept alive after their underlying purpose has vanished. | Retirement or modernization recommendation. |
+
+These characters **observe, question, test and recommend**. They do not grant execution authority, silently mutate customer data, or override a company owner's decisions. The Coordinator can commission a review; a Reviewer or Tester validates findings; the owner decides consequential changes. The Critic is not the same role as a deterministic permission gate.
+
+#### Animated micro-series: *The Humor Gallery — AI Gone Wrong*
+
+1. **The Deployment Is Just Resting** — a service is unresponsive while the team insists it is “optimizing.” *Reality Checker* demands a live result, while *The Critics* comment from the balcony. Failure mode: status optimism without evidence.
+2. **Who's Running What?** — Router, Coordinator and Builder all interpret the same task name differently. *The Confused* map the handoffs. Failure mode: ambiguous ownership and instruction semantics.
+3. **We Can't See the Boundary Underwater** — a confident operator assumes a boundary does not apply because it cannot be seen. *Boundary Tester* introduces explicit negative cases. Failure mode: invisible constraints ignored.
+4. **The Committee That Approved Nothing** — every approval refers to another approval. *The Bureaucrat* documents the loop and *Obstruction Detector* proposes a lawful shorter route. Failure mode: progress confused with process.
+5. **Everything Is Perfectly Normal** — a dashboard labels repeated breakdowns “normal operations.” *Normality Inspector*, *Overconfident Expert* and *The Critics* test that claim. Failure mode: normalization of deviance.
+
+**Video production brief:** English voice and on-screen text; original charming 3D robot characters consistent with the Hermes mascot; midnight, ivory and champagne-gold palette; correct gold infinity mark; brand lockup **Hermes Unlimited — by REHT**. Episodes can be cut into 8–12-second scenes for Gemini/Veo and assembled into 30–40-second stories. Preserve consistent character silhouettes and voices across episodes. Do not recreate copyrighted sketches, dialogue or performers.
+
+**Pilot acceptance:** At least one scene should demonstrate an actual testable failure mode using synthetic inputs, a verifiable observation, a useful critique and an actionable correction. Measure whether users can correctly describe the failure and fix after watching. Entertainment alone does not prove an AI capability.
+
+
 ### The intended customer journey
 
 1. **Create a company** — define its owner, purpose, customers, services, and operating limits.
