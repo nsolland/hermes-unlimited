@@ -115,3 +115,10 @@ def register(ctx):
                             (RESULT_SCHEMA, result_handler)):
         ctx.register_tool(name=schema["name"], toolset="hermes_unlimited",
                           schema=schema, handler=handler)
+
+    # Provider registry tools inherit the same trusted scoped identity.
+    try:
+        from .unlimited.tools import register_company_tools
+    except ImportError:
+        from unlimited.tools import register_company_tools
+    register_company_tools(ctx, scoped_secret, scoped_identity)
