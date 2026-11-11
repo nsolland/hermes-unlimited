@@ -10,10 +10,18 @@ Create companies. Deploy agents. Deliver services. Grow without limits.
 
 </div>
 
-<div align="center">
-  <img src="assets/brand/hermes-mascot.jpg" alt="Hermes Unlimited character with infinity emblem" width="320" />
-  <p><em>Meet the Hermes Unlimited crew.</em></p>
-</div>
+![Meet your AI crew — Hermes Unlimited by REHT](assets/brand/hermes-hero.jpg)
+
+<details>
+<summary><strong>Meet the AI crew — creative, production and operations roles</strong></summary>
+
+![Creative and coordination crew](assets/brand/hermes-crew.jpg)
+
+![The makers — Producer, Builder, Creator and Director](assets/brand/hermes-makers.jpg)
+
+![The operators — Coder, Tester, Debugger, Deployer, Operator and Janitor](assets/brand/hermes-operators.jpg)
+
+</details>
 
 A native [Hermes Agent](https://github.com/NousResearch/hermes-agent) plugin for providers to create and operate AI-native companies and deliver services to their own customers.
 
@@ -45,6 +53,21 @@ Hermes Unlimited is evolving from a native Hermes plugin into a platform where a
 | **Business Engine** | Revenue, cost, AI ROI, billing, and continuous improvement of company economics. |
 | **Communications** | Customer and team interaction through supported phone, email, and messaging channels. |
 | **Integrations & add-ons** | Modular tools, virtual work environments, and optional governance or evidence capabilities. |
+
+### AI crew roles
+
+The crew is a **role model for work**, not a fixed set of separate models or mandatory agents. One agent may perform multiple roles, and roles can be reassigned by the coordinator.
+
+| Role family | Roles | Responsibility |
+| --- | --- | --- |
+| **Direction** | Director, Coordinator, Router | Set direction, break down goals, assign work, and select the right execution path. |
+| **Creative** | Creator, Composer, Storyteller | Design ideas and produce creative content. |
+| **Production** | Producer, Builder, Coder | Make concrete deliverables: software, artifacts, and customer work. |
+| **Quality** | Tester, Debugger, Reviewer | Validate results, identify failures, and repair defects. |
+| **Operations** | Deployer, Operator, Janitor, Maintainer | Release and run services, monitor outcomes, clean up stale state, and keep systems healthy. |
+| **Support** | Helper, Specialist | Assist execution with targeted skills and domain knowledge. |
+
+Roles are envisioned capabilities; the illustrations are a visual identity, not proof of live autonomous execution.
 
 ### The intended customer journey
 
