@@ -38,6 +38,18 @@ A native [Hermes Agent](https://github.com/NousResearch/hermes-agent) plugin for
 
 The native tool handles for company creation, service publishing and requests are functional with a trusted JustYou verifier supplied by the Hermes host.
 
+## Green Core — live acceptance (11 November 2026)
+
+A bounded, synthetic end-to-end acceptance run on the **Acer Hermes Unlimited runtime** completed successfully. This validates the installed customer-flow integration; the public repository's smaller native plugin core is a separate implementation and is **not** claimed to contain every runtime component exercised below.
+
+- Company `acceptance-1111` was created from the support-desk template with three isolated Hermes profiles (triage, responder, knowledge).
+- Three company-scoped JustYou identities were verified; the registry, session renewer and learning timer were active.
+- Native Hermes Kanban task `t_5d8dce9d` was assigned to the triage profile, executed by a real worker and completed with exit code `0` and a customer-support handoff summary.
+- The result was harvested into company-scoped memory once. A subsequent harvest recognized the duplicate without creating a second record.
+- The learned entry was classified `RECORDED_UNVERIFIED`: it is an agent self-report, **not independently verified evidence**. No external customer contact or external effect was performed.
+
+**Acceptance verdict:** GREEN for synthetic company creation → identity isolation → task execution → handoff → scoped learning capture. **Still open:** independent output verification, externally reproducible customer onboarding and production readiness. The runtime acceptance is not a substitute for green local tests against the public repository's exact commit.
+
 ## Future developments
 
 **Our direction: AI-native companies as a service.**
