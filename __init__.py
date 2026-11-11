@@ -95,7 +95,13 @@ def register(ctx):
         try:
             tenant, evidence = scoped_identity()
             _, HermesKanban = _modules()
-            adapter = HermesKanban(hermes=scoped_secret("HERMES_UNLIMITED_HERMES_CLI", "hermes"))
+            try:
+                from .unlimited.hermes_kanban import board_for
+            except ImportError:
+                from unlimited.hermes_kanban import board_for
+            provider = scoped_secret("HERMES_UNLIMITED_PROVIDER_ID", "")
+            adapter = HermesKanban(hermes=scoped_secret("HERMES_UNLIMITED_HERMES_CLI", "hermes"),
+                                   board=board_for(provider, tenant))
             response = adapter.enqueue(
                 tenant=tenant, assignee=ctx.profile_name,
                 task_id=args["request_id"], title=args["title"],
@@ -110,7 +116,13 @@ def register(ctx):
         try:
             tenant, _ = scoped_identity()
             _, HermesKanban = _modules()
-            adapter = HermesKanban(hermes=scoped_secret("HERMES_UNLIMITED_HERMES_CLI", "hermes"))
+            try:
+                from .unlimited.hermes_kanban import board_for
+            except ImportError:
+                from unlimited.hermes_kanban import board_for
+            provider = scoped_secret("HERMES_UNLIMITED_PROVIDER_ID", "")
+            adapter = HermesKanban(hermes=scoped_secret("HERMES_UNLIMITED_HERMES_CLI", "hermes"),
+                                   board=board_for(provider, tenant))
             return json.dumps(adapter.result(tenant=tenant, assignee=ctx.profile_name,
                                              task_id=args["task_id"]), sort_keys=True)
         except (PermissionError, RuntimeError, ValueError, KeyError) as exc:
