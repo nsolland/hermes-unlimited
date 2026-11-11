@@ -1,7 +1,7 @@
 import json
 import unittest
 from types import SimpleNamespace
-from unlimited.hermes_kanban import HermesKanban
+from unlimited.hermes_kanban import HermesKanban, board_for
 
 
 class KanbanTests(unittest.TestCase):
@@ -9,12 +9,12 @@ class KanbanTests(unittest.TestCase):
         self.calls = []
         def runner(args, **kwargs):
             self.calls.append(args)
-            if args[2] == "create":
+            if args[4] == "create":
                 return SimpleNamespace(returncode=0, stdout='{"id":"actual-task"}')
             return SimpleNamespace(returncode=0, stdout=json.dumps([
                 {"id":"actual-task","tenant":"tenant-a","assignee":"role-a",
                  "created_by":"hermes-unlimited","status":"done"}]))
-        self.adapter = HermesKanban(run=runner)
+        self.adapter = HermesKanban(run=runner, board=board_for("provider", "tenant-a"))
         self.evidence = {"verified": True, "authority_granted": False,
                          "binding_digest": "signed", "profile": "role-a"}
 
