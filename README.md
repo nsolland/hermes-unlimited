@@ -1,10 +1,14 @@
-![Hermes Unlimited by REHT](assets/brand/wordmark.svg)
+![Hermes Unlimited — by REHT](assets/brand/github-banner.svg)
 
-# Hermes Unlimited
+<div align="center">
 
-**Build. Run. Grow. Without limits.**
+**All you need to run an AI-native company.**
 
-Hermes Unlimited is a product by **REHT Research Group**. Its infinity mark represents the continuous operation and growth of AI-native companies. REHT is the brand behind the product; this public plugin remains an independently installable Hermes integration.
+Create companies. Deploy agents. Deliver services. Grow without limits.
+
+**A REHT Research Group product.**
+
+</div>
 
 A native [Hermes Agent](https://github.com/NousResearch/hermes-agent) plugin for providers to create and operate AI-native companies and deliver services to their own customers.
 
@@ -64,6 +68,6 @@ See `docs/ARCHITECTURE.md`. The public code is Apache-2.0 licensed; private cust
 
 ## Visual identity
 
-The official product lockup is [`assets/brand/wordmark.svg`](assets/brand/wordmark.svg). Use [`assets/brand/icon.svg`](assets/brand/icon.svg) for app icons and [`assets/brand/infinity.svg`](assets/brand/infinity.svg) where the standalone infinity mark is needed.
+The GitHub hero is [`assets/brand/github-banner.svg`](assets/brand/github-banner.svg). The official product lockup is [`assets/brand/wordmark.svg`](assets/brand/wordmark.svg). Use [`assets/brand/icon.svg`](assets/brand/icon.svg) for app icons and [`assets/brand/infinity.svg`](assets/brand/infinity.svg) where the standalone infinity mark is needed.
 
 Brand colors: midnight `#0B0F17`, champagne gold `#C9A76A`, and ivory `#F8F9F5`. The product name is **Hermes Unlimited**; the endorsement is **by REHT**. These assets are product branding, not a claim that optional integrations are included in this repository.
