@@ -29,7 +29,7 @@ A native [Hermes Agent](https://github.com/NousResearch/hermes-agent) plugin for
 
 ## What works
 
-- Installable Hermes plugin with nine native tools and no Hermes core override.
+- Installable Hermes plugin with eleven native tools and no Hermes core override.
 - Provider/tenant-scoped company and service registry backed by SQLite.
 - Priced service publishing and durable customer request intake with idempotent native Kanban submission; completed worker execution is asynchronous.
 - JustYou session + signed Hermes profile binding verifier, with no token files bundled.
@@ -141,6 +141,8 @@ This is the **product direction**, not a statement that every capability above i
 - `unlimited_service_request`
 - `unlimited_company_task`
 - `unlimited_company_result`
+- `unlimited_creative_render`
+- `unlimited_creative_result`
 
 ## Trusted profile setup
 
@@ -189,6 +191,15 @@ Local green tests remain canonical. Public GitHub Actions independently run
 offline unit tests on Python 3.11–3.13 and CodeQL security analysis on pull
 requests. CI results are advisory and do not attest to live Hermes dispatch,
 customer effects, or production readiness. Dependabot checks action updates.
+
+## Installation and execution disclosures (catalog rule 13)
+
+- **Network:** The core does not send mandatory telemetry. Hermes workers can contact model providers selected and paid for by the host. Optional creative rendering can contact the host-configured render backend; the ComfyUI client sends workflows to the configured ComfyUI server and reads outputs.
+- **Local files and persistence:** Provider, company, service and customer-request metadata are stored in the configured SQLite registry. The host-provided JustYou verifier may read a signed binding export, a private session-token file and a public verification-key file outside plugin data; paths are explicit profile configuration, never discovered by scanning arbitrary files.
+- **Shell and background work:** The plugin invokes the local `hermes kanban` CLI to create and read worker tasks on an explicitly provisioned tenant board. Hermes, not the plugin, owns scheduling and workers. No additional privileged daemon, unattended shell job or self-updater is installed.
+- **Secrets:** Identity, tenant and authority are resolved from host/profile scope; no API credentials, private keys or bearer tokens ship with the repository. Secrets remain in the host's configured stores.
+- **Approvals:** No auto-approval, disabling of Hermes guards or core override. Missing authorization fails closed. The plugin may submit work only after trusted JustYou verification.
+- **Limits:** No live payment settlement, no independently attested worker effects and no claim of production customer fulfillment. A Hermes task marked `done` is not proof of customer acceptance.
 
 ## Boundary
 
