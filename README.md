@@ -10,6 +10,11 @@ Create companies. Deploy agents. Deliver services. Grow without limits.
 
 </div>
 
+<div align="center">
+  <img src="assets/brand/hermes-mascot.jpg" alt="Hermes Unlimited character with infinity emblem" width="320" />
+  <p><em>Meet the Hermes Unlimited crew.</em></p>
+</div>
+
 A native [Hermes Agent](https://github.com/NousResearch/hermes-agent) plugin for providers to create and operate AI-native companies and deliver services to their own customers.
 
 **Public Core status: experimental integration, not a production release.**
