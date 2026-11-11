@@ -38,11 +38,29 @@ SCHEMAS = (
         "description": "List only companies in the bound provider and customer tenant.",
         "parameters": {"type": "object", "properties": {}, "additionalProperties": False},
     },
+    {
+        "name": "unlimited_service_dispatch",
+        "description": "Retry or resume an existing service request using idempotent Hermes Kanban submission.",
+        "parameters": {"type": "object", "properties": {
+            "company_id": {"type": "string"}, "request_id": {"type": "string"}},
+            "required": ["company_id", "request_id"], "additionalProperties": False},
+    },
+    {
+        "name": "unlimited_service_result",
+        "description": "Read the scoped native Hermes execution result of a service request.",
+        "parameters": {"type": "object", "properties": {
+            "company_id": {"type": "string"}, "request_id": {"type": "string"}},
+            "required": ["company_id", "request_id"], "additionalProperties": False},
+    },
 )
 
 
 def register_company_tools(ctx, scoped_secret, scoped_identity):
     from .runtime import ProviderStore
+
+    def adapter():
+        from .hermes_kanban import HermesKanban
+        return HermesKanban(hermes=scoped_secret("HERMES_UNLIMITED_HERMES_CLI", "hermes"))
 
     def verified_store():
         tenant, evidence = scoped_identity()
@@ -56,7 +74,7 @@ def register_company_tools(ctx, scoped_secret, scoped_identity):
             return (expected_provider == provider and expected_tenant == tenant
                     and evidence.get("verified") is True
                     and identity == evidence.get("identity"))
-        return ProviderStore(path, verify), provider, tenant, evidence["identity"]
+        return ProviderStore(path, verify), provider, tenant, evidence
 
     def make_handler(name):
         def handler(args=None, **_kwargs):
@@ -68,7 +86,25 @@ def register_company_tools(ctx, scoped_secret, scoped_identity):
             if set(args) - permitted or not required.issubset(args):
                 return json.dumps({"ok": False, "reason": "INVALID_ARGUMENTS"})
             try:
-                store, provider, tenant, identity = verified_store()
+                store, provider, tenant, evidence = verified_store()
+                identity = evidence["identity"]
+                def dispatch(company_id, request_id):
+                    item = store.get_request(provider, tenant, company_id, request_id, identity)
+                    if item is None:
+                        raise ValueError("REQUEST_NOT_FOUND")
+                    if item["task_id"]:
+                        return {"request": request_id, "state": item["state"],
+                                "task_id": item["task_id"], "executed": False}
+                    response = adapter().enqueue(
+                        tenant=tenant, assignee=ctx.profile_name,
+                        task_id=f"{company_id}:{request_id}",
+                        title=f"{company_id}/{item['service']}/{request_id}",
+                        body=json.dumps(item["payload"], sort_keys=True),
+                        identity_evidence=evidence)
+                    store.attach_task(provider, tenant, company_id, request_id,
+                                      response["task_id"], identity)
+                    return {"request": request_id, "state": "running",
+                            "task_id": response["task_id"], "executed": False}
                 if name == "unlimited_company_create":
                     out = store.create_company(provider, tenant, args["company_id"],
                                                args["display_name"], identity)
@@ -77,9 +113,35 @@ def register_company_tools(ctx, scoped_secret, scoped_identity):
                         provider, tenant, args["company_id"], args["service_id"],
                         args["title"], args["price_minor"], args["currency"], identity)
                 elif name == "unlimited_service_request":
-                    out = store.request_service(
+                    store.request_service(
                         provider, tenant, args["company_id"], args["request_id"],
                         args["service_id"], args["payload"], identity)
+                    try:
+                        out = dispatch(args["company_id"], args["request_id"])
+                    except RuntimeError:
+                        # The request stays durably queued; retry via service_dispatch.
+                        out = {"request": args["request_id"], "state": "queued",
+                               "executed": False, "dispatch_pending": True}
+                elif name == "unlimited_service_dispatch":
+                    out = dispatch(args["company_id"], args["request_id"])
+                elif name == "unlimited_service_result":
+                    item = store.get_request(provider, tenant, args["company_id"],
+                                             args["request_id"], identity)
+                    if item is None:
+                        raise ValueError("REQUEST_NOT_FOUND")
+                    if not item["task_id"]:
+                        out = {"request": args["request_id"], "state": "queued",
+                               "completed": False, "independently_verified": False}
+                    else:
+                        result = adapter().result(tenant=tenant, assignee=ctx.profile_name,
+                                                  task_id=item["task_id"])
+                        if result.get("found") is not True:
+                            raise ValueError("SCOPED_TASK_NOT_FOUND")
+                        store.record_task_result(provider, tenant, args["company_id"],
+                                                 args["request_id"], item["task_id"],
+                                                 result, identity)
+                        out = {"request": args["request_id"], "task_id": item["task_id"],
+                               **result}
                 else:
                     out = {"companies": store.list_companies(provider, tenant, identity)}
                 return json.dumps(out, sort_keys=True)

@@ -5,6 +5,7 @@ import sys
 import tempfile
 import types
 import unittest
+from unittest.mock import patch
 from types import SimpleNamespace
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -47,6 +48,22 @@ class ToolIntegrationTests(unittest.TestCase):
         def register_tool(name, toolset, schema, handler):
             self.ctx.handlers[name] = handler
         self.ctx.register_tool = register_tool
+        self.submissions = []
+        self.kanban_unavailable = False
+        outer = self
+        class FakeKanban:
+            def __init__(self, **_kwargs):
+                pass
+            def enqueue(self, **kwargs):
+                if outer.kanban_unavailable:
+                    raise RuntimeError("HERMES_KANBAN_UNAVAILABLE")
+                outer.submissions.append(kwargs)
+                return {"task_id": "task-" + str(len(outer.submissions))}
+            def result(self, **kwargs):
+                return {"found": True, "completed": True, "status": "done",
+                        "independently_verified": False}
+        self.patcher = patch("unlimited.hermes_kanban.HermesKanban", FakeKanban)
+        self.patcher.start()
 
         spec = importlib.util.spec_from_file_location("hermes_unlimited_test_entry", ROOT / "__init__.py")
         plugin = importlib.util.module_from_spec(spec)
@@ -54,6 +71,7 @@ class ToolIntegrationTests(unittest.TestCase):
         plugin.register(self.ctx)
 
     def tearDown(self):
+        self.patcher.stop()
         self.temp.cleanup()
         for key, prior in (("agent", self.previous_agent), ("agent.secret_scope", self.previous_scope)):
             if prior is None:
@@ -75,8 +93,42 @@ class ToolIntegrationTests(unittest.TestCase):
         req = self.call("unlimited_service_request",
                         {"company_id": "company-a", "service_id": "brief",
                          "request_id": "request-a", "payload": {"topic": "market"}})
-        self.assertEqual(req["state"], "queued")
+        self.assertEqual(req["state"], "running")
+        self.assertEqual(req["task_id"], "task-1")
+        self.assertEqual(len(self.submissions), 1)
+        result = self.call("unlimited_service_result", {"company_id": "company-a",
+                                                      "request_id": "request-a"})
+        self.assertTrue(result["completed"])
+        self.assertFalse(result["independently_verified"])
         self.assertEqual(self.call("unlimited_company_list")["companies"][0]["company"], "company-a")
+
+    def test_dispatch_idempotent_and_scoped(self):
+        self.call("unlimited_company_create", {"company_id": "company-a", "display_name": "A"})
+        self.call("unlimited_service_publish", {"company_id": "company-a", "service_id": "brief",
+                                               "title": "Brief", "price_minor": 0, "currency": "NOK"})
+        self.call("unlimited_service_request", {"company_id": "company-a", "service_id": "brief",
+                                               "request_id": "req-1", "payload": {}})
+        again = self.call("unlimited_service_dispatch", {"company_id": "company-a", "request_id": "req-1"})
+        self.assertEqual(again["task_id"], "task-1")
+        self.assertEqual(len(self.submissions), 1)
+        self.settings["HERMES_UNLIMITED_TENANT_ID"] = "tenant-b"
+        self.settings["HERMES_UNLIMITED_JUSTYOU_IDENTITY"] = "@owner"
+        denied = self.call("unlimited_service_result", {"company_id": "company-a", "request_id": "req-1"})
+        self.assertFalse(denied.get("found", False))
+
+    def test_unavailable_kanban_keeps_request_for_retry(self):
+        self.call("unlimited_company_create", {"company_id": "company-a", "display_name": "A"})
+        self.call("unlimited_service_publish", {"company_id": "company-a", "service_id": "brief",
+                                               "title": "Brief", "price_minor": 0, "currency": "NOK"})
+        self.kanban_unavailable = True
+        queued = self.call("unlimited_service_request", {"company_id": "company-a", "service_id": "brief",
+                                                       "request_id": "req-1", "payload": {}})
+        self.assertTrue(queued["dispatch_pending"])
+        self.assertEqual(queued["state"], "queued")
+        self.kanban_unavailable = False
+        dispatched = self.call("unlimited_service_dispatch", {"company_id": "company-a", "request_id": "req-1"})
+        self.assertEqual(dispatched["task_id"], "task-1")
+        self.assertEqual(len(self.submissions), 1)
 
     def test_identity_mismatch_fails_all_writes(self):
         self.settings["HERMES_UNLIMITED_JUSTYOU_IDENTITY"] = "@other"

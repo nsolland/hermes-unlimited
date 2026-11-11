@@ -51,6 +51,22 @@ class ProviderFlowTests(unittest.TestCase):
         with self.assertRaises(Exception):
             self.store.request_service("owner", "customer-a", "agency", "req-01", "missing", {}, i)
 
+    def test_task_binding_and_result_are_tenant_scoped(self):
+        i = self._identity("customer-a")
+        self.store.create_company("owner", "customer-a", "agency", "Agency", i)
+        self.store.publish_service("owner", "customer-a", "agency", "brief", "Brief", 0, "NOK", i)
+        self.store.request_service("owner", "customer-a", "agency", "req-1", "brief", {}, i)
+        self.store.attach_task("owner", "customer-a", "agency", "req-1", "kanban-1", i)
+        self.store.attach_task("owner", "customer-a", "agency", "req-1", "kanban-1", i)
+        with self.assertRaises(ValueError):
+            self.store.attach_task("owner", "customer-a", "agency", "req-1", "kanban-2", i)
+        self.store.record_task_result("owner", "customer-a", "agency", "req-1", "kanban-1",
+                                      {"found": True, "status": "done", "completed": True,
+                                       "independently_verified": False}, i)
+        self.assertEqual(self.store.get_request("owner", "customer-a", "agency", "req-1", i)["state"], "done")
+        self.assertIsNone(self.store.get_request("owner", "customer-b", "agency", "req-1",
+                                                   self._identity("customer-b")))
+
 
 if __name__ == "__main__":
     unittest.main()
