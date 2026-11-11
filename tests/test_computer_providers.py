@@ -51,7 +51,7 @@ class ComputerTests(unittest.TestCase):
             p.stop(tenant="tenant-b", resource="pc-1")
         with self.assertRaises(AuthorizationDenied):
             p.inspect(tenant="tenant-a", resource="foreign")
-        with self.assertRaises(ValueError):
+        with self.assertRaises(AuthorizationDenied):
             p.inspect(tenant="tenant-a", resource="../bad")
         opener.assert_not_called()
 
