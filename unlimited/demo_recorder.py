@@ -129,6 +129,24 @@ def sanitize_logs(raw_logs: str, *, redact: tuple[str, ...] = ("KEY", "TOKEN")) 
     return sanitized
 
 
+def _color_for_brand(brand: str) -> str:
+    """Return a deterministic, valid ffmpeg colour name/hex for a brand.
+
+    ``DemoScenario.brand`` is a brand name (e.g. "Hermes Unlimited"), not an
+    ffmpeg colour.  Register a small mapping of common brands to solid
+    colours and derive a collision-free fallback hex for anything else, so
+    the recorder never hands an invalid colour to the lavfi ``color``
+    source.
+    """
+    known = {"Hermes Unlimited": "#C9A76A"}
+    if brand in known:
+        return known[brand]
+    digest = 0
+    for ch in brand:
+        digest = (digest * 31 + ord(ch)) & 0xFFFFFF
+    return f"#{digest:06X}"
+
+
 def write_manifest(scenario: DemoScenario, source_revision: str, output_path: Path) -> None:
     """Write a source manifest: scenario inventory + immutable source SHA."""
     manifest = {
@@ -179,14 +197,24 @@ class DemoRecorder:
         self.default_duration = default_duration
 
     def validate_output(self, path: Path) -> dict:
-        """Validate an MP4 with ffprobe: returns frame count and duration."""
+        """Validate an MP4 with ffprobe: returns frame count and duration.
+
+        ffprobe is preferred over the ffmpeg binary because the bundled
+        ffmpeg in this environment does not advertise ``-select_streams``.
+        The input is probed directly (no re-encoding) and the video stream's
+        metadata is returned.
+        """
         path = Path(path)
         if not path.is_file():
             raise FileNotFoundError(f"video not found: {path}")
-        ffmpeg = self.ffmpeg_path
-        cmd = [ffmpeg, "-v", "error", "-select_streams", "v:0",
-               "-show_entries", "stream=nb_frames,r_frame_rate,duration",
-               "-of", "json", str(path)]
+        ffprobe = shutil.which("ffprobe") or Path(self.ffmpeg_path).parent / "ffprobe"
+        cmd = [
+            ffprobe,
+            "-v", "error",
+            "-select_streams", "v:0",
+            "-show_entries", "stream=nb_frames,r_frame_rate,duration",
+            "-of", "json", str(path),
+        ]
         result = subprocess.run(cmd, capture_output=True, text=True, check=False)
         if result.returncode != 0:
             raise FfprobeFailedError(f"ffprobe failed: {result.stderr[-300:]}")
@@ -194,11 +222,13 @@ class DemoRecorder:
             data = json.loads(result.stdout)
         except ValueError as exc:
             raise FfprobeFailedError(f"unparseable ffprobe output: {exc}") from exc
-        stream = data.get("streams", [{}])[0]
+        streams = data.get("streams", [])
+        if not streams:
+            raise FfprobeFailedError("no video stream found in output")
         return {
-            "nb_frames": stream.get("nb_frames"),
-            "r_frame_rate": stream.get("r_frame_rate"),
-            "duration": stream.get("duration"),
+            "nb_frames": streams[0].get("nb_frames"),
+            "r_frame_rate": streams[0].get("r_frame_rate"),
+            "duration": streams[0].get("duration"),
         }
 
     def record(self, scenario: DemoScenario) -> Path:
@@ -210,11 +240,14 @@ class DemoRecorder:
         output = self.output_dir / f"{scenario.name}.mp4"
         preflight_selectors(scenario.selectors)
         # Solid-color source keeps this fully offline and deterministic.
+        # ``scenario.brand`` is a brand name, not a colour, so resolve a valid
+        # colour first (see _color_for_brand).
+        color = _color_for_brand(scenario.brand)
         cmd = [
             self.ffmpeg_path,
             "-y",
             "-f", "lavfi",
-            "-i", f"color=c={scenario.brand}:s={scenario.width}x{scenario.height}:r=30",
+            "-i", f"color=c={color}:s={scenario.width}x{scenario.height}:r=30",
             "-t", str(scenario.duration_seconds),
             "-c:v", "libx264",
             "-pix_fmt", "yuv420p",
