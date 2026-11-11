@@ -59,8 +59,11 @@ def register_company_tools(ctx, scoped_secret, scoped_identity):
     from .runtime import ProviderStore
 
     def adapter():
-        from .hermes_kanban import HermesKanban
-        return HermesKanban(hermes=scoped_secret("HERMES_UNLIMITED_HERMES_CLI", "hermes"))
+        from .hermes_kanban import HermesKanban, board_for
+        tenant, _ = scoped_identity()
+        provider = scoped_secret("HERMES_UNLIMITED_PROVIDER_ID", "")
+        return HermesKanban(hermes=scoped_secret("HERMES_UNLIMITED_HERMES_CLI", "hermes"),
+                            board=board_for(provider, tenant))
 
     def verified_store():
         tenant, evidence = scoped_identity()
