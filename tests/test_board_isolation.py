@@ -25,6 +25,14 @@ class BoardIsolationTests(unittest.TestCase):
             with self.subTest(value=value), self.assertRaises(ValueError):
                 HermesKanban(board=value)
 
+    def test_runtime_and_retry_bounds_fail_closed(self):
+        board = board_for("provider", "tenant-a")
+        for runtime, retries in ((0, 1), (86401, 1), (True, 1),
+                                 (900, 0), (900, 6), (900, True)):
+            with self.subTest(runtime=runtime, retries=retries), self.assertRaises(ValueError):
+                HermesKanban(board=board, max_runtime_seconds=runtime,
+                             max_retries=retries)
+
     def test_enqueue_and_result_pin_same_board(self):
         commands = []
 
@@ -49,6 +57,10 @@ class BoardIsolationTests(unittest.TestCase):
         self.assertTrue(result["completed"])
         self.assertFalse(result["independently_verified"])
         self.assertEqual(len(commands), 2)
+        self.assertIn("--max-runtime", commands[0])
+        self.assertEqual(commands[0][commands[0].index("--max-runtime") + 1], "900")
+        self.assertIn("--max-retries", commands[0])
+        self.assertEqual(commands[0][commands[0].index("--max-retries") + 1], "1")
         self.assertTrue(all(command[2:4] == ["--board", board] for command in commands))
 
 

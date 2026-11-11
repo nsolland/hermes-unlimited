@@ -22,12 +22,19 @@ def board_for(provider, tenant):
 
 
 class HermesKanban:
-    def __init__(self, hermes="hermes", run=None, board=None):
+    def __init__(self, hermes="hermes", run=None, board=None, max_runtime_seconds=900, max_retries=1):
         self.hermes = hermes
         self.run = run or subprocess.run
         if not isinstance(board, str) or not BOARD_ID.fullmatch(board) or board == "default":
             raise ValueError("ISOLATED_BOARD_REQUIRED")
         self.board = board
+        if (type(max_runtime_seconds) is not int
+                or not 60 <= max_runtime_seconds <= 86400
+                or type(max_retries) is not int
+                or not 1 <= max_retries <= 5):
+            raise ValueError("TASK_EXECUTION_BOUNDS_INVALID")
+        self.max_runtime_seconds = max_runtime_seconds
+        self.max_retries = max_retries
 
     def _invoke(self, args):
         try:
@@ -58,7 +65,8 @@ class HermesKanban:
             "create", title.strip(), "--body", body,
             "--assignee", assignee, "--tenant", tenant,
             "--created-by", "hermes-unlimited", "--idempotency-key",
-            f"{tenant}:{task_id}", "--json"])
+            f"{tenant}:{task_id}", "--max-runtime", str(self.max_runtime_seconds),
+            "--max-retries", str(self.max_retries), "--json"])
         if not isinstance(result, dict) or not result.get("id"):
             raise RuntimeError("TASK_CREATE_UNVERIFIED")
         return {"status": "TASK_QUEUED", "task_id": str(result["id"]),
