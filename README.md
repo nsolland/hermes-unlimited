@@ -29,11 +29,11 @@ A native [Hermes Agent](https://github.com/NousResearch/hermes-agent) plugin for
 
 ## What works
 
-- Installable Hermes plugin with seven native tools and no Hermes core override.
+- Installable Hermes plugin with nine native tools and no Hermes core override.
 - Provider/tenant-scoped company and service registry backed by SQLite.
-- Priced service publishing and customer request intake (recorded as queued; not executed).
+- Priced service publishing and durable customer request intake with idempotent native Kanban submission; completed worker execution is asynchronous.
 - JustYou session + signed Hermes profile binding verifier, with no token files bundled.
-- Native Hermes Kanban task submission and scoped state reader.
+- Native Hermes Kanban task submission and scoped state reader, including request-to-task result association.
 - Fail-closed checks for missing identity, mismatched profile, tenant boundaries and duplicate request IDs.
 
 The native tool handles for company creation, service publishing and requests are functional with a trusted JustYou verifier supplied by the Hermes host.
@@ -135,6 +135,8 @@ This is the **product direction**, not a statement that every capability above i
 - `hermes_unlimited_status`
 - `unlimited_company_create`
 - `unlimited_company_list`
+- `unlimited_service_dispatch`
+- `unlimited_service_result`
 - `unlimited_service_publish`
 - `unlimited_service_request`
 - `unlimited_company_task`

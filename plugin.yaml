@@ -11,3 +11,5 @@ provides_tools:
   - unlimited_service_publish
   - unlimited_service_request
   - unlimited_company_list
+  - unlimited_service_dispatch
+  - unlimited_service_result

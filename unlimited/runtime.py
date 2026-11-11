@@ -56,12 +56,16 @@ class ProviderStore:
                     service TEXT NOT NULL, payload TEXT NOT NULL,
                     state TEXT NOT NULL DEFAULT 'queued',
                     result TEXT,
+                    task_id TEXT,
                     created_at INTEGER NOT NULL,
                     PRIMARY KEY(provider, tenant, company, request),
                     FOREIGN KEY(provider, tenant, company, service)
                         REFERENCES services(provider, tenant, company, service)
                 );
             """)
+            columns = {row[1] for row in db.execute("PRAGMA table_info(requests)")}
+            if "task_id" not in columns:
+                db.execute("ALTER TABLE requests ADD COLUMN task_id TEXT")
 
     @staticmethod
     def _ids(*values):
@@ -137,3 +141,48 @@ class ProviderStore:
             ).fetchall()
         return [{"request": r, "service": s, "state": st, "result": json.loads(res) if res else None}
                 for r, s, st, res in rows]
+
+    def get_request(self, provider, tenant, company, request, identity):
+        self._authorize(provider, tenant, identity)
+        self._ids(company, request)
+        with self._db() as db:
+            row = db.execute(
+                "SELECT service,payload,state,result,task_id FROM requests "
+                "WHERE provider=? AND tenant=? AND company=? AND request=?",
+                (provider, tenant, company, request)).fetchone()
+        if row is None:
+            return None
+        return {"request": request, "service": row[0], "payload": json.loads(row[1]),
+                "state": row[2], "result": json.loads(row[3]) if row[3] else None,
+                "task_id": row[4]}
+
+    def attach_task(self, provider, tenant, company, request, task_id, identity):
+        self._authorize(provider, tenant, identity)
+        self._ids(company, request)
+        if not isinstance(task_id, str) or not re.fullmatch(r"[A-Za-z0-9._:-]{1,128}", task_id):
+            raise ValueError("TASK_ID_INVALID")
+        with self._db() as db:
+            updated = db.execute(
+                "UPDATE requests SET task_id=?,state='running' "
+                "WHERE provider=? AND tenant=? AND company=? AND request=? "
+                "AND (task_id IS NULL OR task_id=?)",
+                (task_id, provider, tenant, company, request, task_id)).rowcount
+        if updated != 1:
+            raise ValueError("REQUEST_NOT_FOUND_OR_TASK_CONFLICT")
+
+    def record_task_result(self, provider, tenant, company, request, task_id, result, identity):
+        self._authorize(provider, tenant, identity)
+        self._ids(company, request)
+        if not isinstance(result, dict) or result.get("found") is not True:
+            raise ValueError("TASK_RESULT_UNVERIFIED")
+        status = result.get("status")
+        if status not in {"ready", "running", "review", "done", "blocked", "scheduled", "todo", "triage", "archived"}:
+            raise ValueError("TASK_STATE_INVALID")
+        serialized = json.dumps(result, separators=(",", ":"))
+        with self._db() as db:
+            updated = db.execute(
+                "UPDATE requests SET state=?,result=? WHERE provider=? AND tenant=? "
+                "AND company=? AND request=? AND task_id=?",
+                (status, serialized, provider, tenant, company, request, task_id)).rowcount
+        if updated != 1:
+            raise ValueError("REQUEST_TASK_MISMATCH")
