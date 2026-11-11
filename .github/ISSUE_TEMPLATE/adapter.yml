@@ -1,0 +1,41 @@
+name: Adapter proposal
+description: Propose a working public adapter for an external service
+title: "[Adapter] "
+labels: []
+body:
+  - type: input
+    id: upstream
+    attributes:
+      label: Upstream project and API documentation
+      description: Include a public URL
+      placeholder: https://github.com/owner/project
+    validations:
+      required: true
+  - type: input
+    id: license
+    attributes:
+      label: Upstream license
+      placeholder: SPDX identifier, or unknown
+    validations:
+      required: true
+  - type: textarea
+    id: usecase
+    attributes:
+      label: What real user action should work?
+      description: Describe end-to-end operation and readback
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance tests and failure cases
+      description: Include offline test plan, isolation, missing credentials and timeout behavior
+    validations:
+      required: true
+  - type: textarea
+    id: integration
+    attributes:
+      label: Existing reusable code
+      description: Link to relevant modules or issues to avoid duplication
+    validations:
+      required: false
