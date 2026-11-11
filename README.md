@@ -106,8 +106,30 @@ Roles are envisioned capabilities; the illustrations are a visual identity, not 
 | **The Improvisers** | Swedish *Macken* (Roy & Roger) | Explore low-cost practical workarounds when the standard route fails. | Bounded alternative proposal with assumptions and trade-offs. |
 | **The Logical Satirist** | Hasse & Tage | Apply a claim's logic consistently to expose contradictions. | Counterexample or contradiction. |
 | **The Obsolescence Inspector** | Galenskaparna's *Stinsen brinner* | Identify workflows kept alive after their underlying purpose has vanished. | Retirement or modernization recommendation. |
+| **The Strategist** | *Blackadder* | Challenge weak plans, wrong priorities and excessive complexity. | Simpler strategy with explicit trade-offs. |
+| **The Frustrated Operator** | *Fawlty Towers* | Detect broken operational handoffs and poor customer experiences. | Failure timeline, owner and recovery action. |
+| **The Social Skeptic** | Larry David's observational comedy | Challenge whether customers actually want or understand an offering. | Customer-value hypothesis and validation test. |
+| **The Diagnostician** | *House* | Compare competing explanations before declaring a root cause. | Ranked hypotheses and discriminating tests. |
+| **The Minimalist** | *Parks and Recreation*'s Ron Swanson | Remove unnecessary agents, meetings, tools and workflow stages. | Smallest viable implementation and cost delta. |
+| **The Bullshit Detector** | George Carlin's language criticism | Flag inflated claims, jargon and unsupported marketing statements. | Plain-language claim and proof checklist. |
+| **The Questioner** | Socratic questioning | Surface unstated premises and test reasoning with targeted questions. | Assumptions and falsification questions. |
+| **The Makers** | Original Hermes Unlimited production crew | Producer, Builder, Creator and Director turn goals into concrete assets. | Traceable production deliverables. |
+| **The Operators** | Original Hermes Unlimited execution crew | Coder, Tester, Debugger, Deployer, Operator and Janitor build, validate and maintain outputs. | Working artifacts, tests, releases and maintenance records. |
 
 These characters **observe, question, test and recommend**. They do not grant execution authority, silently mutate customer data, or override a company owner's decisions. The Coordinator can commission a review; a Reviewer or Tester validates findings; the owner decides consequential changes. The Critic is not the same role as a deterministic permission gate.
+
+#### Character-led episode collection
+
+The first episodes already sketched for the Hermes Unlimited Comedy Crew are:
+
+| Episode | Working title | Failure mode |
+| --- | --- | --- |
+| **01 — The Critics** | *Who Reviews the Reviewers?* | Independent reviewers must themselves be reviewable; a third auditor challenges The Skeptic and The Cynic. |
+| **02 — The Confused** | *Who's Running Who?* | Circular delegation and ambiguous role ownership. |
+| **03 — The Minimalist** | *Fourteen Agents and a Shell Script* | Overengineering a task that requires a simpler tool. |
+| **04 — The Operators** | *It Works on My Machine* | A local success is mistaken for a tested, deployable system. |
+
+An initial Gemini-produced visual episode for *The Critics* was created outside this repository; the table is a concept slate, not a claim that all four videos are published here.
 
 #### Animated micro-series: *The Humor Gallery — AI Gone Wrong*
 
