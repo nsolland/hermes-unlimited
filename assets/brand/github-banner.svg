@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 480" role="img" aria-labelledby="title desc">
+<title id="title">Hermes Unlimited by REHT</title>
+<desc id="desc">Golden infinity symbol above the Hermes Unlimited name on a midnight background.</desc>
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#101925"/><stop offset=".55" stop-color="#080D14"/><stop offset="1" stop-color="#182233"/></linearGradient>
+  <linearGradient id="gold" x1="0" y1="0" x2="1" y2=".35"><stop stop-color="#8E622F"/><stop offset=".22" stop-color="#F8D99C"/><stop offset=".52" stop-color="#C69C58"/><stop offset=".76" stop-color="#F4D8A3"/><stop offset="1" stop-color="#99703D"/></linearGradient>
+  <radialGradient id="glow"><stop stop-color="#C9A76A" stop-opacity=".24"/><stop offset="1" stop-color="#C9A76A" stop-opacity="0"/></radialGradient>
+</defs>
+<rect width="1200" height="480" rx="20" fill="url(#bg)"/>
+<ellipse cx="600" cy="125" rx="420" ry="205" fill="url(#glow)"/>
+<g fill="none" stroke="#C9A76A" stroke-opacity=".13">
+<path d="M-70 417 Q340 170 600 315 T1270 220"/>
+<path d="M-70 430 Q340 183 600 328 T1270 233"/>
+<path d="M-70 443 Q340 196 600 341 T1270 246"/>
+<path d="M-70 456 Q340 209 600 354 T1270 259"/>
+<path d="M-70 469 Q340 222 600 367 T1270 272"/>
+<path d="M-70 482 Q340 235 600 380 T1270 285"/>
+</g>
+<g fill="none" stroke="#D2B67E" stroke-opacity=".22"><circle cx="600" cy="142" r="91" stroke-dasharray="2 10"/><path d="M397 142H803M600 29V255"/></g>
+<path d="M600 141 C558 80 529 69 491 69 C450 69 422 99 422 141 C422 183 450 213 491 213 C529 213 558 202 600 141 C642 80 671 69 709 69 C750 69 778 99 778 141 C778 183 750 213 709 213 C671 213 642 202 600 141" fill="none" stroke="#271D13" stroke-opacity=".7" stroke-width="26" stroke-linecap="round"/>
+<path d="M600 141 C558 80 529 69 491 69 C450 69 422 99 422 141 C422 183 450 213 491 213 C529 213 558 202 600 141 C642 80 671 69 709 69 C750 69 778 99 778 141 C778 183 750 213 709 213 C671 213 642 202 600 141" fill="none" stroke="url(#gold)" stroke-width="17" stroke-linecap="round"/>
+<text x="600" y="316" text-anchor="middle" fill="#F8F5EF" font-family="Arial,Helvetica,sans-serif" font-weight="300" font-size="66" letter-spacing="2">hermes unlimited</text>
+<path d="M459 357h62M679 357h62" stroke="#B89054" stroke-width="1.5"/>
+<text x="600" y="366" text-anchor="middle" fill="#C9A76A" font-family="Arial,Helvetica,sans-serif" font-weight="400" font-size="21" letter-spacing="7">BY REHT</text>
+<text x="600" y="428" text-anchor="middle" fill="#D6DCE2" font-family="Arial,Helvetica,sans-serif" font-weight="400" font-size="22" letter-spacing="3">BUILD. RUN. GROW. WITHOUT LIMITS.</text>
+</svg>
