@@ -6,7 +6,6 @@ https://github.com/pingdotgg/t3code/blob/main/docs/user/outside-agents.md
 No T3 source is vendored. Caller is responsible for tenant/project authorization
 before invoking this adapter; a local T3 host is a privileged execution boundary.
 """
-import json
 import re
 import subprocess
 
@@ -43,7 +42,7 @@ class T3Code:
 
     @staticmethod
     def _id(value):
-        if not isinstance(value, str) or not _ID.fullmatch(value):
+        if not isinstance(value, str) or not _ID.fullmatch(value) or value.startswith("-"):
             raise ValueError("invalid T3 thread or project identifier")
         return value
 
@@ -58,7 +57,7 @@ class T3Code:
                 raise ValueError("invalid worktree base")
             args.extend(["--worktree", worktree])
         result = self._call(*args)
-        if not _ID.fullmatch(result):
+        if not _ID.fullmatch(result) or result.startswith("-"):
             raise T3CodeError("T3 did not return a valid thread ID")
         return result
 
