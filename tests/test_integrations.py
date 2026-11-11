@@ -6,14 +6,15 @@ from unlimited.integrations import integration_catalog, integration_for
 class IntegrationCatalogTests(unittest.TestCase):
     def test_optional_adapters_are_discoverable_without_claiming_execution(self):
         catalog = integration_catalog()
-        self.assertEqual(len(catalog), 5)
-        self.assertEqual(len({entry["key"] for entry in catalog}), 5)
+        self.assertEqual(len(catalog), 6)
+        self.assertEqual(len({entry["key"] for entry in catalog}), 6)
         self.assertTrue(all(not entry["can_execute"] for entry in catalog))
 
     def test_upstream_boundaries(self):
         self.assertEqual(integration_for("postiz").license, "AGPL-3.0")
         self.assertEqual(integration_for("open-seo").interface, "mcp")
         self.assertEqual(integration_for("ghost").interface, "admin_api")
+        self.assertEqual(integration_for("comfyui").interface, "http_api")
         self.assertIsNone(integration_for("hyperagent"))
 
     def test_callers_cannot_mutate_catalog(self):
