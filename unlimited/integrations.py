@@ -23,6 +23,7 @@ INTEGRATIONS = (
     Integration("videolingo", "Huanshere/VideoLingo", "video_localization", "local_worker", "Apache-2.0"),
     Integration("ghost", "TryGhost/Ghost", "publishing_memberships", "admin_api", "MIT"),
     Integration("rea", "morluto/rea", "authorized_software_interoperability", "mcp_cli", "MIT"),
+    Integration("comfyui", "comfyanonymous/ComfyUI", "creative_image_video_workflows", "http_api", "GPL-3.0"),
 )
 
 

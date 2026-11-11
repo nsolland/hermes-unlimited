@@ -71,6 +71,30 @@ Hermes owns the worker, channels, scheduler and Kanban execution. JustYou suppli
 
 See `docs/ARCHITECTURE.md`. The public code is Apache-2.0 licensed; private customer data and separately licensed extensions are not included.
 
+## Optional ComfyUI creative engine
+
+`unlimited.comfyui.ComfyUI` provides an opt-in HTTP client for an existing
+[ComfyUI](https://github.com/comfyanonymous/ComfyUI) server. It submits an
+API-format workflow to `/prompt`, reads `/history/{prompt_id}` and downloads
+output descriptors from `/view`. No ComfyUI runtime, models, weights, workflow
+templates or GPU are installed or bundled. Configure the origin explicitly:
+
+```python
+from unlimited.comfyui import ComfyUI
+
+creative = ComfyUI("http://127.0.0.1:8188")
+ack = creative.submit(api_format_workflow)
+result = creative.result(ack["prompt_id"])
+if result["state"] == "completed":
+    print(result["outputs"])
+```
+
+Use only a trusted deployment and reviewed workflows. The calling Hermes
+service must enforce tenant permissions, cost ceilings, allowed nodes and
+output ownership; this low-level client does not grant execution authority.
+ComfyUI is separately licensed (GPL-3.0) and is not redistributed here. A
+successful offline test does not establish a live GPU workflow or finished media.
+
 ## Visual identity
 
 The GitHub hero is [`assets/brand/github-banner.svg`](assets/brand/github-banner.svg). The official product lockup is [`assets/brand/wordmark.svg`](assets/brand/wordmark.svg). Use [`assets/brand/icon.svg`](assets/brand/icon.svg) for app icons and [`assets/brand/infinity.svg`](assets/brand/infinity.svg) where the standalone infinity mark is needed.
