@@ -2,11 +2,13 @@
 
 <div align="center">
 
-**All you need to run an AI-native company.**
+**Don't hire another bot. Launch a company.**
 
-Create companies. Deploy agents. Deliver services. Grow without limits.
+Create AI-native companies for yourself and your customers. Publish services. Receive orders. Put Hermes workers to work. Retrieve the result.
 
-**A REHT Research Group product.**
+**[Explore the product → valoresearch.org/hermes-unlimited](https://valoresearch.org/hermes-unlimited/)** · **[Discuss a provider pilot →](mailto:njaal@valoresearch.org?subject=Hermes%20Unlimited%20provider%20pilot)**
+
+*A REHT Research Group product. Built on NousResearch Hermes Agent.*
 
 </div>
 
