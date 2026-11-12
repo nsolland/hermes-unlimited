@@ -79,7 +79,7 @@ def read_session_token(path):
 
 
 def load_resolver(bindings_path, authority_key_id, authority_key_file, authority_kind="ed25519"):
-    from protocol.authoritative_binding import (AuthorityBinding, Ed25519Authority,
+    from .authoritative_binding import (AuthorityBinding, Ed25519Authority,
                                                 HmacAuthority, VerifiedResolver,
                                                 VersionAnnouncement)
     material = _private_bytes(authority_key_file).strip()
