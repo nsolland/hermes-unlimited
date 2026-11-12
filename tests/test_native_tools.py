@@ -82,6 +82,13 @@ class ToolIntegrationTests(unittest.TestCase):
     def call(self, tool, args=None):
         return json.loads(self.ctx.handlers[tool](args or {}))
 
+    def test_manifest_declares_all_registered_tools(self):
+        manifest = (ROOT / "plugin.yaml").read_text(encoding="utf-8")
+        names = set(line.strip()[2:] for line in manifest.splitlines()
+                    if line.strip().startswith("- "))
+        self.assertEqual(names, set(self.ctx.handlers),
+                         "plugin.yaml must match registered tools exactly")
+
     def test_public_company_service_request_path(self):
         created = self.call("unlimited_company_create",
                             {"company_id": "company-a", "display_name": "Research Firm"})
