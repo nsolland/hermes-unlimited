@@ -28,6 +28,16 @@ from unlimited.screenplay_adapter import (
 )
 
 
+class ScreenplayAdapterCoreIsolationTests(unittest.TestCase):
+    def test_adapter_initialization_does_not_resolve_ffmpeg(self):
+        from unittest.mock import patch
+        with patch("unlimited.demo_recorder.find_ffmpeg", side_effect=AssertionError("media dependency accessed")):
+            adapter = ScreenplayAdapter(config=AdapterConfig())
+            self.assertIsNone(adapter.recorder)
+            scenario = adapter.from_spec({"name": "core-only", "selectors": ("button.start",), "duration_seconds": 1, "narration": "x"})
+            adapter.check_scenario(scenario)
+
+
 class ScreenplayAdapterSpecTests(unittest.TestCase):
     def setUp(self):
         self.adapter = ScreenplayAdapter(config=AdapterConfig())
