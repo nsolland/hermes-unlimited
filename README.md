@@ -31,7 +31,7 @@ A native [Hermes Agent](https://github.com/NousResearch/hermes-agent) plugin for
 
 ## What works
 
-- Installable Hermes plugin with eleven native tools and no Hermes core override.
+- Installable Hermes plugin with ten native tools and no Hermes core override.
 - Provider/tenant-scoped company and service registry backed by SQLite.
 - Priced service publishing and durable customer request intake with idempotent native Kanban submission; completed worker execution is asynchronous.
 - JustYou session + signed Hermes profile binding verifier, with no token files bundled.
@@ -165,12 +165,10 @@ This is the **product direction**, not a statement that every capability above i
 - `unlimited_service_request`
 - `unlimited_company_task`
 - `unlimited_company_result`
-- `unlimited_creative_render`
-- `unlimited_creative_result`
 
 ## Trusted profile setup
 
-The plugin accepts trusted JustYou objects injected by Hermes (`ctx.justyou_session_store`, `ctx.justyou_resolver`) or connects to the canonical JustYou service through a loopback-only session validator and signed profile-binding cache. It fails closed if either verification is unavailable. Hermes profile-scoped secrets must provide:
+The plugin can accept JustYou objects in test/integrated hosts, or connects to the canonical JustYou service through a loopback-only session validator and signed profile-binding cache. It fails closed if either verification is unavailable. Hermes profile-scoped secrets must provide:
 
 - `HERMES_UNLIMITED_PROVIDER_ID`
 - `HERMES_UNLIMITED_TENANT_ID`
@@ -260,3 +258,7 @@ successful offline test does not establish a live GPU workflow or finished media
 The GitHub hero is [`assets/brand/github-banner.svg`](assets/brand/github-banner.svg). The official product lockup is [`assets/brand/wordmark.svg`](assets/brand/wordmark.svg). Use [`assets/brand/icon.svg`](assets/brand/icon.svg) for app icons and [`assets/brand/infinity.svg`](assets/brand/infinity.svg) where the standalone infinity mark is needed.
 
 Brand colors: midnight `#0B0F17`, champagne gold `#C9A76A`, and ivory `#F8F9F5`. The product name is **Hermes Unlimited**; the endorsement is **by REHT**. These assets are product branding, not a claim that optional integrations are included in this repository.
+
+## Catalog review compatibility (alpha.4)
+
+The public catalog build ships its own signed-binding verifier rather than depending on an undeclared `protocol` package. The `cryptography` dependency is declared in `plugin.yaml`. The JustYou session token is required through Hermes `requires_env`; provider, tenant, identity, registry and authority verifier paths are declared as non-secret `config_schema` settings. Creative render/result tools are intentionally withheld from the public release until an independently deployable workflow allowlist and owned job store are available. The optional private creative integration is not part of the catalog tool surface.
