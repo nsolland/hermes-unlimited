@@ -2,6 +2,8 @@
 import json
 import re
 
+from .adapter_gate import AdapterDenied, authorize_adapter
+from pathlib import Path
 from .comfyui import ComfyUI, ComfyUIError
 
 _NAME = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
@@ -26,6 +28,12 @@ def register_creative_tools(ctx, scoped_secret, scoped_identity):
         try:
             tenant, evidence = scoped_identity()
             identity = evidence["identity"]
+            # Host-owned approval must be checked before creating a client or
+            # dispatching optional media work. Catalog metadata grants nothing.
+            root = Path(__file__).resolve().parents[1]
+            authorize_adapter("comfyui", catalog_path=root / "adapters/catalog.json",
+                approvals_path=root / "adapters/approvals.json", host_scope=tenant,
+                capability="render" if kind == 0 else "result")
             origin = scoped_secret("HERMES_UNLIMITED_COMFYUI_URL", "")
             resolver = getattr(ctx, "comfyui_workflow_resolver", None)
             store = getattr(ctx, "comfyui_job_store", None)
@@ -48,7 +56,7 @@ def register_creative_tools(ctx, scoped_secret, scoped_identity):
             if not isinstance(prompt_id, str) or not _NAME.fullmatch(prompt_id) or not store.owns(tenant, identity, prompt_id):
                 raise PermissionError("JOB_NOT_OWNED")
             return json.dumps({"ok": True, **client.result(prompt_id)})
-        except (PermissionError, RuntimeError, ValueError, KeyError, TypeError, AttributeError, ComfyUIError) as exc:
+        except (PermissionError, RuntimeError, ValueError, KeyError, TypeError, AttributeError, ComfyUIError, AdapterDenied) as exc:
             return json.dumps({"ok": False, "reason": type(exc).__name__})
 
     for index, schema in enumerate(SCHEMAS):

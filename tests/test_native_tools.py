@@ -208,8 +208,10 @@ class ToolIntegrationTests(unittest.TestCase):
         self.ctx.comfyui_job_store = Store()
         self.ctx.comfyui_client_factory = Client
         self.assertFalse(self.call("unlimited_creative_render", {"workflow": "other", "prompt": "Hi"})["ok"])
-        self.assertEqual(self.call("unlimited_creative_render", {"workflow": "image", "prompt": "A tree"})["state"], "submitted")
-        self.assertEqual(self.call("unlimited_creative_result", {"prompt_id": "render-1"})["state"], "completed")
+        # No reviewed adapter is installed in the default distribution.
+        self.assertFalse(self.call("unlimited_creative_render", {"workflow": "image", "prompt": "A tree"})["ok"])
+        self.assertFalse(self.call("unlimited_creative_result", {"prompt_id": "render-1"})["ok"])
+        self.assertEqual(len(Store.saved), 0)
         self.assertFalse(self.call("unlimited_creative_result", {"prompt_id": "someone-else"})["ok"])
         self.settings["HERMES_UNLIMITED_JUSTYOU_IDENTITY"] = "@other"
         self.assertFalse(self.call("unlimited_creative_render", {"workflow": "image", "prompt": "Hi"})["ok"])
