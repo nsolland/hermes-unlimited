@@ -173,7 +173,7 @@ The plugin can accept JustYou objects in test/integrated hosts, or connects to t
 - `HERMES_UNLIMITED_PROVIDER_ID`
 - `HERMES_UNLIMITED_TENANT_ID`
 - `HERMES_UNLIMITED_JUSTYOU_IDENTITY`
-- `HERMES_UNLIMITED_JUSTYOU_SESSION_TOKEN` or `HERMES_UNLIMITED_JUSTYOU_SESSION_TOKEN_FILE` (private mode `0600`, reread on each operation)
+- `HERMES_UNLIMITED_JUSTYOU_SESSION_TOKEN` (required, obtained through Hermes scoped credentials)
 - `HERMES_UNLIMITED_REGISTRY_DB`
 - Optional `HERMES_UNLIMITED_HERMES_CLI`
 
