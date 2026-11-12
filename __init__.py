@@ -144,3 +144,8 @@ def register(ctx):
     except ImportError:
         from unlimited.creative_tools import register_creative_tools
     register_creative_tools(ctx, scoped_secret, scoped_identity)
+    try:
+        from .unlimited.discord_channel import register_discord_tools
+    except ImportError:
+        from unlimited.discord_channel import register_discord_tools
+    register_discord_tools(ctx, scoped_secret, scoped_identity)
