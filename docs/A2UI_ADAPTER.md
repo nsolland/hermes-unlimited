@@ -44,3 +44,24 @@ Still required before an interactive Captain's Bridge release:
 4. Run the local full suite, exact-SHA smoke, and cross-tenant live acceptance.
 
 Reference: https://a2ui.org/specification/v1.0-a2ui/
+
+## Native Hermes tool registration
+
+The plugin registers `unlimited_a2ui_surface` through the existing
+`register_company_tools` entrypoint. The host calls it with:
+
+- `{"view":"companies","surface_id":"companies_1"}`
+- `{"view":"requests","company_id":"acme","surface_id":"requests_1"}`
+
+It returns a validated A2UI 1.0 envelope as a JSON tool result. Provider,
+tenant and trusted JustYou identity are resolved only from the Hermes host
+scope, never from tool arguments. The tool does not start tasks or execute any
+effects, and is not yet an automatic renderer/MCP Apps transport. The host must
+still register a renderer and explicitly forward returned envelopes to it.
+
+Verified on the Mac worker against exact SHA with `python3 -m unittest discover
+-s tests -q`: 102 tests, 1 skipped, 0 errors. Both generated createSurface
+examples were also validated against the official A2UI 1.0 `agent_to_renderer`,
+`common_types` and Basic Catalog JSON schemas fetched on 12 November 2026.
+The upstream schema checks are currently an external acceptance check, not
+an offline dependency of the repository tests.
