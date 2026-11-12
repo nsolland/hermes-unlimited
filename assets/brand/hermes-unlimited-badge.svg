@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="284" height="36" viewBox="0 0 284 36" role="img" aria-label="Hermes Unlimited by REHT Research Group">
+ <title>Hermes Unlimited · REHT Research Group</title>
+ <rect width="284" height="36" rx="8" fill="#101f38"/>
+ <rect x="1" y="1" width="282" height="34" rx="7" fill="none" stroke="#d6ad60" stroke-width="1.5"/>
+ <path d="M17 22 L24 10 L30 18 L37 10 L44 22 Z" fill="none" stroke="#d6ad60" stroke-width="2" stroke-linejoin="round"/>
+ <text x="54" y="22.5" fill="#fff" font-family="Arial,Helvetica,sans-serif" font-size="15" font-weight="700">Hermes Unlimited</text>
+ <path d="M205 8 V28" stroke="#d6ad60" stroke-width="1"/>
+ <text x="217" y="22.5" fill="#d6ad60" font-family="Arial,Helvetica,sans-serif" font-size="13" font-weight="700">REHT</text>
+</svg>

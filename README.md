@@ -1,5 +1,11 @@
 ![Hermes Unlimited — by REHT](assets/brand/github-banner.svg)
 
+[![Hermes Unlimited by REHT Research Group](assets/brand/hermes-unlimited-badge.svg)](https://valoresearch.org/hermes-unlimited/)
+[![Unit tests](https://github.com/rrglab/hermes-unlimited/actions/workflows/tests.yml/badge.svg)](https://github.com/rrglab/hermes-unlimited/actions/workflows/tests.yml)
+[![Release gate](https://github.com/rrglab/hermes-unlimited/actions/workflows/release-gate.yml/badge.svg)](https://github.com/rrglab/hermes-unlimited/actions/workflows/release-gate.yml)
+[![CodeQL](https://github.com/rrglab/hermes-unlimited/actions/workflows/codeql.yml/badge.svg)](https://github.com/rrglab/hermes-unlimited/actions/workflows/codeql.yml)
+[![License: Apache 2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
 <div align="center">
 
 **Don't hire another bot. Launch a company.**
