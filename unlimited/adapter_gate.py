@@ -23,7 +23,7 @@ def _read(path):
     return json.loads(Path(path).read_text(encoding='utf-8'))
 
 
-def authorize_adapter(adapter_id, *, catalog_path, approvals_path, host_scope, capability):
+def authorize_adapter(adapter_id, *, catalog_path, approvals_path, host_scope, capability, status_provider=None):
     """Return pinned approved metadata; reject all incomplete or untrusted inputs."""
     if not isinstance(adapter_id, str) or not _ID.fullmatch(adapter_id):
         raise AdapterDenied('INVALID_ADAPTER_ID')
@@ -85,11 +85,24 @@ def authorize_adapter(adapter_id, *, catalog_path, approvals_path, host_scope, c
         raise AdapterDenied('SOURCE_OUTSIDE_REPOSITORY')
     if hashlib.sha256(source.read_bytes()).hexdigest() != digest:
         raise AdapterDenied('SOURCE_DIGEST_MISMATCH')
+    # A host-controlled live status provider must confirm this exact artifact
+    # at admission time. A stale approval file is never sufficient.
+    if not callable(status_provider):
+        raise AdapterDenied('LIVE_STATUS_PROVIDER_REQUIRED')
+    try:
+        live = status_provider(adapter_id, version, digest)
+    except Exception as exc:
+        raise AdapterDenied('LIVE_STATUS_UNAVAILABLE') from exc
+    if not isinstance(live, dict) or live.get('version') != version or live.get('sha256') != digest:
+        raise AdapterDenied('LIVE_STATUS_MISMATCH')
+    if live.get('revoked') is not False or any(live.get('checks', {}).get(k) != 'passed' for k in mandatory):
+        raise AdapterDenied('LIVE_STATUS_NOT_GREEN')
     return dict(record)
 
 
-def load_approved_adapter(adapter_id, *, catalog_path, approvals_path, host_scope, capability):
+def load_approved_adapter(adapter_id, *, catalog_path, approvals_path, host_scope, capability, status_provider=None):
     """Import only after all admission checks; host still owns effect authorization."""
     record = authorize_adapter(adapter_id, catalog_path=catalog_path,
-        approvals_path=approvals_path, host_scope=host_scope, capability=capability)
+        approvals_path=approvals_path, host_scope=host_scope, capability=capability,
+        status_provider=status_provider)
     return importlib.import_module(record['module'])

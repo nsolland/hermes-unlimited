@@ -33,10 +33,39 @@ class AdapterGateTests(unittest.TestCase):
 
     def authorize(self):
         return authorize_adapter('sample',catalog_path=self.catalog,approvals_path=self.approvals,
-            host_scope='tenant-a',capability='read')
+            host_scope='tenant-a',capability='read',status_provider=self.live)
+
+    def live(self, adapter_id, version, digest):
+        return {'version':version,'sha256':digest,'revoked':False,'checks':dict(self.approval['checks'])}
 
     def test_exact_pinned_approval(self):
         self.assertEqual(self.authorize()['version'],'1.0.0')
+
+    def test_missing_live_provider_denies_stale_approval(self):
+        with self.assertRaises(AdapterDenied):
+            authorize_adapter('sample',catalog_path=self.catalog,approvals_path=self.approvals,
+                host_scope='tenant-a',capability='read')
+
+    def test_live_failure_revokes_approved_adapter(self):
+        def failed(_id, version, digest):
+            return {'version':version,'sha256':digest,'revoked':False,
+                'checks':{'unit':'passed','contract':'passed','security':'failed','integration':'passed'}}
+        with self.assertRaises(AdapterDenied):
+            authorize_adapter('sample',catalog_path=self.catalog,approvals_path=self.approvals,
+                host_scope='tenant-a',capability='read',status_provider=failed)
+
+    def test_live_revocation_denies(self):
+        def revoked(_id, version, digest):
+            return {'version':version,'sha256':digest,'revoked':True,'checks':dict(self.approval['checks'])}
+        with self.assertRaises(AdapterDenied):
+            authorize_adapter('sample',catalog_path=self.catalog,approvals_path=self.approvals,
+                host_scope='tenant-a',capability='read',status_provider=revoked)
+
+    def test_live_provider_outage_denies(self):
+        def unavailable(*args): raise ConnectionError('offline')
+        with self.assertRaises(AdapterDenied):
+            authorize_adapter('sample',catalog_path=self.catalog,approvals_path=self.approvals,
+                host_scope='tenant-a',capability='read',status_provider=unavailable)
 
     def test_evaluation_is_denied(self):
         self.entry['status']='evaluation';self.save()

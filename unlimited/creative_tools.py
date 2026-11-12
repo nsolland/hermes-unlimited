@@ -33,7 +33,8 @@ def register_creative_tools(ctx, scoped_secret, scoped_identity):
             root = Path(__file__).resolve().parents[1]
             authorize_adapter("comfyui", catalog_path=root / "adapters/catalog.json",
                 approvals_path=root / "adapters/approvals.json", host_scope=tenant,
-                capability="render" if kind == 0 else "result")
+                capability="render" if kind == 0 else "result",
+                status_provider=getattr(ctx, "adapter_live_status_provider", None))
             origin = scoped_secret("HERMES_UNLIMITED_COMFYUI_URL", "")
             resolver = getattr(ctx, "comfyui_workflow_resolver", None)
             store = getattr(ctx, "comfyui_job_store", None)
