@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "policy": "No adapter is approved by declaration alone; approval requires independent evidence.",
+  "adapters": [
+    {"id":"screenplay-media","origin":"internal","status":"evaluation","module":"unlimited.screenplay_adapter","optional_dependencies":["ffmpeg"],"evidence":"tests_optional_media/","approved_version":null},
+    {"id":"a2ui","origin":"internal","status":"evaluation","module":"unlimited.a2ui_adapter","optional_dependencies":[],"evidence":null,"approved_version":null},
+    {"id":"comfyui","origin":"external-integration","status":"evaluation","module":"unlimited.comfyui","optional_dependencies":[],"evidence":null,"approved_version":null}
+  ]
+}
