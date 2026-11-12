@@ -1,0 +1,24 @@
+name: Bug report
+description: Report a reproducible defect without exposing secrets
+title: "[Bug] "
+body:
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      description: Include exact version or commit, sanitized inputs, and command
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected and actual result
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Sanitized diagnostics
+      description: Do not submit credentials, customer data, tokens or private URLs
+    validations:
+      required: false

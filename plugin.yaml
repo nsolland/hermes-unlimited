@@ -1,0 +1,18 @@
+name: hermes-unlimited
+kind: standalone
+version: 0.1.0-alpha.3
+description: Native Hermes public core for provider-operated AI-native companies
+requires_hermes: ">=0.21.5"
+provides_tools:
+  - hermes_unlimited_status
+  - unlimited_company_task
+  - unlimited_company_result
+  - unlimited_company_create
+  - unlimited_service_publish
+  - unlimited_service_request
+  - unlimited_company_list
+  - unlimited_a2ui_surface
+  - unlimited_service_dispatch
+  - unlimited_service_result
+  - unlimited_creative_render
+  - unlimited_creative_result

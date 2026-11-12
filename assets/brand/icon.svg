@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title">
+  <title id="title">Hermes Unlimited app icon</title>
+  <rect width="256" height="256" rx="54" fill="#0B0F17"/>
+  <path d="M128 128 C103 91 83 75 58 75 C30 75 15 98 15 128 C15 158 30 181 58 181 C83 181 103 165 128 128 C153 91 173 75 198 75 C226 75 241 98 241 128 C241 158 226 181 198 181 C173 181 153 165 128 128" fill="none" stroke="#C9A76A" stroke-width="17" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
