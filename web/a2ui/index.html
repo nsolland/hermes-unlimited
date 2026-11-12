@@ -1,15 +1,20 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; connect-src 'none'; img-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; connect-src 'self'; img-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <title>Hermes Unlimited · A2UI Preview</title>
 <style>
 :root{font:16px/1.5 system-ui,sans-serif;color-scheme:dark;background:#10151d;color:#edf2f8}
-body{max-width:960px;margin:0 auto;padding:2rem 1rem}header{border-bottom:1px solid #343d49;margin-bottom:2rem;padding-bottom:1rem}h1{font-size:1.6rem}small,.muted{color:#aab6c7}button,input[type=file]{font:inherit}button{padding:.65rem 1rem;border:0;border-radius:.5rem;background:#73b6fc;color:#081522;cursor:pointer}button:focus-visible,input:focus-visible{outline:3px solid #73b6fc;outline-offset:3px}
+body{max-width:960px;margin:0 auto;padding:2rem 1rem}header{border-bottom:1px solid #343d49;margin-bottom:2rem;padding-bottom:1rem}h1{font-size:1.6rem}small,.muted{color:#aab6c7}button,input{font:inherit}input[type=password],input[type=text]{display:block;width:100%;box-sizing:border-box;margin:.3rem 0 1rem;padding:.65rem;border-radius:.5rem;border:1px solid #546277;background:#1b2532;color:inherit}button{padding:.65rem 1rem;border:0;border-radius:.5rem;background:#73b6fc;color:#081522;cursor:pointer}button:focus-visible,input:focus-visible{outline:3px solid #73b6fc;outline-offset:3px}
 textarea{display:block;width:100%;min-height:9rem;box-sizing:border-box;background:#1b2532;border:1px solid #546277;border-radius:.6rem;color:inherit;padding:.9rem;font:0.85rem/1.5 ui-monospace,monospace}
 .controls{display:flex;gap:.7rem;flex-wrap:wrap;align-items:center;margin:.75rem 0 1rem}#message{min-height:1.5em}#surface{margin-top:1rem;background:#1b2532;border:1px solid #343d49;border-radius:1rem;padding:1.25rem}#surface:empty::before{content:'No A2UI surface loaded';color:#aab6c7}
 .a2ui-column{display:flex;flex-direction:column;gap:.5rem}.a2ui-column p{padding:.75rem .9rem;background:#243244;border-radius:.5rem;margin:0}.a2ui-column h2{margin:0 0 .7rem;font-size:1.25rem}.a2ui-row{display:flex;flex-wrap:wrap;gap:1rem}.a2ui-card{border:1px solid #526275;border-radius:.7rem;padding:.9rem}
 </style></head><body>
 <header><h1>Hermes Unlimited · A2UI</h1><div class="muted">Read-only v1.0 renderer · synthetic previews or authenticated Hermes tool output</div></header>
-<main><label for="payload">Paste the JSON result of <code>unlimited_a2ui_surface</code></label>
+<main><section aria-label="Hermes live transport">
+<label for="bearer">Local bridge access token (kept in this tab only)</label>
+<input id="bearer" type="password" autocomplete="off" spellcheck="false" placeholder="Transport token">
+<label for="company">Company ID for requests</label><input id="company" type="text" autocomplete="off" placeholder="company-id">
+<div class="controls"><button id="companies" type="button">Load companies</button><button id="requests" type="button">Load requests</button></div>
+</section><label for="payload">Paste the JSON result of <code>unlimited_a2ui_surface</code></label>
 <textarea id="payload" spellcheck="false" placeholder='{"version":"1.0","createSurface":{...}}'></textarea>
 <div class="controls"><button id="render" type="button">Render surface</button><label>Or open JSON file <input id="file" type="file" accept=".json,application/json"></label></div>
 <p role="status" aria-live="polite" id="message">No data loaded. No network requests are made by this viewer.</p>

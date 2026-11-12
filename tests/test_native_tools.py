@@ -102,6 +102,29 @@ class ToolIntegrationTests(unittest.TestCase):
         self.assertFalse(result["independently_verified"])
         self.assertEqual(self.call("unlimited_company_list")["companies"][0]["company"], "company-a")
 
+    def test_a2ui_loopback_bridge_calls_real_registered_hermes_handler(self):
+        import threading
+        import urllib.request
+        from unlimited.a2ui_bridge import make_bridge, new_transport_token
+        self.call("unlimited_company_create", {"company_id":"company-a", "display_name":"Live through Hermes"})
+        token = new_transport_token()
+        server = make_bridge(self.ctx.handlers["unlimited_a2ui_surface"], token=token)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            url = f"http://127.0.0.1:{server.server_port}/api/surface?view=companies&surface_id=live"
+            request = urllib.request.Request(url, headers={"Authorization":"Bearer "+token})
+            with urllib.request.urlopen(request, timeout=3) as response:
+                self.assertIn("Live through Hermes", response.read().decode())
+            self.settings["HERMES_UNLIMITED_JUSTYOU_IDENTITY"]="@other"
+            with self.assertRaises(urllib.error.HTTPError) as blocked:
+                urllib.request.urlopen(request, timeout=3)
+            self.assertEqual(blocked.exception.code, 403)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=3)
+
     def test_a2ui_native_tool_is_read_only_and_tenant_scoped(self):
         self.call("unlimited_company_create", {"company_id": "company-a", "display_name": "Research Firm"})
         surface = self.call("unlimited_a2ui_surface", {"view": "companies", "surface_id": "companies_1"})
