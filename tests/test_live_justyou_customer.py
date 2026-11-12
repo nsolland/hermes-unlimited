@@ -80,7 +80,7 @@ class LiveCustomerAcceptance(unittest.TestCase):
                     "HERMES_UNLIMITED_JUSTYOU_IDENTITY": identity,
                     "HERMES_UNLIMITED_JUSTYOU_REGISTRY_URL":
                         f"http://127.0.0.1:{server.server_port}",
-                    "HERMES_UNLIMITED_JUSTYOU_SESSION_TOKEN_FILE": str(token_file),
+                    "HERMES_UNLIMITED_JUSTYOU_SESSION_TOKEN": session.token,
                     "JUSTYOU_BINDINGS_FILE": str(bindings),
                     "JUSTYOU_AUTHORITY_KEY_ID": "test-authority",
                     "JUSTYOU_AUTHORITY_KEY_FILE": str(public_key),
@@ -88,6 +88,7 @@ class LiveCustomerAcceptance(unittest.TestCase):
                 }
                 secret = lambda name, default="": settings.get(name, default)
                 ctx = SimpleNamespace(profile_name="acceptancepublic1111", handlers={})
+                ctx.get_config = lambda name, default="": settings.get(name, default)
                 store, resolver, token = trusted_components(ctx, secret)
                 from unlimited.justyou import JustYouVerifier
                 evidence = JustYouVerifier(store, resolver, ctx.profile_name, token).verify()
@@ -128,8 +129,7 @@ class LiveCustomerAcceptance(unittest.TestCase):
                     self.assertEqual(result["task_id"], "synthetic-task-1")
                     self.assertTrue(call("unlimited_service_result", {
                         "company_id": "synthetic-company", "request_id": "synthetic-request"})["completed"])
-                    token_file.write_text("revoked-or-invalid")
-                    token_file.chmod(0o600)
+                    settings["HERMES_UNLIMITED_JUSTYOU_SESSION_TOKEN"] = "revoked-or-invalid"
                     self.assertFalse(call("unlimited_company_create", {
                         "company_id": "denied", "display_name": "Denied"})["ok"])
             finally:
