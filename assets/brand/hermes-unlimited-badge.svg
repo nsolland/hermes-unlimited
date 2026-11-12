@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="320" height="44" viewBox="0 0 320 44" role="img" aria-labelledby="title">
- <title id="title">hermes unlimited — BY REHT</title>
- <defs><linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9D713A"/><stop offset=".34" stop-color="#E5C68D"/><stop offset=".65" stop-color="#C9A76A"/><stop offset="1" stop-color="#94652D"/></linearGradient></defs>
- <rect width="320" height="44" rx="7" fill="#0B0F17"/>
- <path d="M23 22 C18 14.6 14 11.4 9 11.4 C3.4 11.4 .4 16 .4 22 C.4 28 3.4 32.6 9 32.6 C14 32.6 18 29.4 23 22 C28 14.6 32 11.4 37 11.4 C42.6 11.4 45.6 16 45.6 22 C45.6 28 42.6 32.6 37 32.6 C32 32.6 28 29.4 23 22" transform="translate(10 0) scale(.8 1)" fill="none" stroke="url(#gold)" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
- <text x="56" y="21" fill="#F8F9F5" font-family="Inter,Helvetica Neue,Arial,sans-serif" font-size="19" font-weight="300" letter-spacing=".3">hermes unlimited</text>
- <text x="58" y="34" fill="#C9A76A" font-family="Inter,Helvetica Neue,Arial,sans-serif" font-size="9" letter-spacing="2.8">BY REHT</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="340" height="56" viewBox="0 0 340 56" role="img" aria-labelledby="title desc">
+<title id="title">hermes unlimited — BY REHT</title>
+<desc id="desc">Official Hermes Unlimited infinity icon and wordmark in gold and midnight colors.</desc>
+<rect width="340" height="56" rx="8" fill="#0B0F17"/>
+<g transform="translate(8 7) scale(.1640625)"><path d="M128 128 C103 91 83 75 58 75 C30 75 15 98 15 128 C15 158 30 181 58 181 C83 181 103 165 128 128 C153 91 173 75 198 75 C226 75 241 98 241 128 C241 158 226 181 198 181 C173 181 153 165 128 128" fill="none" stroke="#C9A76A" stroke-width="17" stroke-linecap="round" stroke-linejoin="round"/></g>
+<text x="60" y="29" fill="#F8F5EF" font-family="Arial,Helvetica,sans-serif" font-size="23" font-weight="300" letter-spacing=".4">hermes unlimited</text>
+<text x="62" y="45" fill="#C9A76A" font-family="Arial,Helvetica,sans-serif" font-size="10" letter-spacing="3">BY REHT</text>
 </svg>
