@@ -312,6 +312,7 @@ class VerifiedResolver:
         self._authorities: Dict[str, Verifier] = {a.key_id: a for a in authorities}
         self._cache: Dict[str, AuthorityBinding] = {}
         self._known_authoritative_version: Dict[str, int] = {}
+        self._announced_digests: Dict[tuple[str, int], str] = {}
         self.source = source
 
     def _verify_binding(self, binding: AuthorityBinding) -> None:
@@ -323,9 +324,14 @@ class VerifiedResolver:
         authority = self._authorities.get(announcement.authority_key_id)
         if authority is None or not authority.verify_announcement(announcement):
             raise SignatureError("announcement cannot be verified")
+        key = (announcement.identity, announcement.version)
+        existing_digest = self._announced_digests.get(key)
+        if existing_digest is not None and existing_digest != announcement.binding_digest:
+            raise ConflictError("conflicting signed announcement digest")
         known = self._known_authoritative_version.get(announcement.identity, 0)
         if announcement.version < known:
             return
+        self._announced_digests[key] = announcement.binding_digest
         self._known_authoritative_version[announcement.identity] = announcement.version
 
     def cache_binding(self, binding: AuthorityBinding) -> None:
@@ -349,6 +355,9 @@ class VerifiedResolver:
         required = max(required, known)
         if binding.version < required:
             raise FreshnessError(f"cached version {binding.version} is stale; version >= {required} required")
+        announced = self._announced_digests.get((identity, binding.version))
+        if announced is not None and announced != binding.digest():
+            raise FreshnessError("cached signed binding conflicts with announced digest")
 
         receipt = ResolutionReceipt(
             identity=identity,
