@@ -50,24 +50,24 @@ class BrowserBridgeAcceptance(unittest.TestCase):
 
     def test_authentication_and_tenant_recheck(self):
         self.page.get_by_role('button',name='Load companies').click()
-        self.assertIn('TOKEN_REQUIRED',self.page.locator('#message').inner_text())
+        self.page.locator('#message').get_by_text('Bridge rejected: TOKEN_REQUIRED').wait_for(timeout=5000)
         self.assertEqual(self.page.locator('#surface').inner_text(),'')
         self.page.locator('#bearer').fill('x'*40)
         self.page.get_by_role('button',name='Load companies').click()
-        self.assertIn('ACCESS_DENIED_OR_UNAVAILABLE',self.page.locator('#message').inner_text())
+        self.page.locator('#message').get_by_text('Bridge rejected: ACCESS_DENIED_OR_UNAVAILABLE').wait_for(timeout=5000)
         self.page.locator('#bearer').fill(self.token)
         self.page.get_by_role('button',name='Load companies').click()
-        self.assertIn('Live synthetic company',self.page.locator('#surface').inner_text())
+        self.page.get_by_text('Live synthetic company').wait_for(timeout=5000)
         self.allowed=False
         self.page.get_by_role('button',name='Load companies').click()
-        self.assertIn('ACCESS_DENIED_OR_UNAVAILABLE',self.page.locator('#message').inner_text())
+        self.page.locator('#message').get_by_text('Bridge rejected: ACCESS_DENIED_OR_UNAVAILABLE').wait_for(timeout=5000)
         self.assertEqual(self.page.locator('#surface').inner_text(),'')
 
     def test_requests_render_without_private_payload(self):
         self.page.locator('#bearer').fill(self.token)
         self.page.locator('#company').fill('acme')
         self.page.get_by_role('button',name='Load requests').click()
-        self.assertIn('req1 · review · queued',self.page.locator('#surface').inner_text())
+        self.page.get_by_text('req1 · review · queued').wait_for(timeout=5000)
         self.assertNotIn('SECRET_PAYLOAD',self.page.locator('#surface').inner_text())
 
 
