@@ -46,6 +46,15 @@ SCHEMAS = (
             "required": ["company_id", "request_id"], "additionalProperties": False},
     },
     {
+        "name": "unlimited_a2ui_surface",
+        "description": "Return a read-only A2UI 1.0 surface for the bound tenant; no action dispatch.",
+        "parameters": {"type": "object", "properties": {
+            "view": {"type": "string", "enum": ["companies", "requests"]},
+            "company_id": {"type": "string"},
+            "surface_id": {"type": "string"}},
+            "required": ["view", "surface_id"], "additionalProperties": False},
+    },
+    {
         "name": "unlimited_service_result",
         "description": "Read the scoped native Hermes execution result of a service request.",
         "parameters": {"type": "object", "properties": {
@@ -108,7 +117,18 @@ def register_company_tools(ctx, scoped_secret, scoped_identity):
                                       response["task_id"], identity)
                     return {"request": request_id, "state": "running",
                             "task_id": response["task_id"], "executed": False}
-                if name == "unlimited_company_create":
+                if name == "unlimited_a2ui_surface":
+                    from .a2ui_adapter import company_surface, request_surface
+                    view = args["view"]
+                    if view == "companies" and "company_id" not in args:
+                        out = company_surface(store, provider, tenant, identity,
+                                              surface_id=args["surface_id"])
+                    elif view == "requests" and "company_id" in args:
+                        out = request_surface(store, provider, tenant, args["company_id"],
+                                              identity, surface_id=args["surface_id"])
+                    else:
+                        raise ValueError("INVALID_A2UI_VIEW_ARGUMENTS")
+                elif name == "unlimited_company_create":
                     out = store.create_company(provider, tenant, args["company_id"],
                                                args["display_name"], identity)
                 elif name == "unlimited_service_publish":

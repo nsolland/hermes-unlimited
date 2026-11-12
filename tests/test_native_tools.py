@@ -102,6 +102,22 @@ class ToolIntegrationTests(unittest.TestCase):
         self.assertFalse(result["independently_verified"])
         self.assertEqual(self.call("unlimited_company_list")["companies"][0]["company"], "company-a")
 
+    def test_a2ui_native_tool_is_read_only_and_tenant_scoped(self):
+        self.call("unlimited_company_create", {"company_id": "company-a", "display_name": "Research Firm"})
+        surface = self.call("unlimited_a2ui_surface", {"view": "companies", "surface_id": "companies_1"})
+        self.assertEqual(surface["version"], "1.0")
+        self.assertIn("Research Firm", json.dumps(surface))
+        self.assertNotIn("action", json.dumps(surface))
+        self.assertEqual(len(self.submissions), 0)
+        invalid = self.call("unlimited_a2ui_surface", {"view": "companies", "company_id": "company-a", "surface_id": "x"})
+        self.assertFalse(invalid["ok"])
+        invalid = self.call("unlimited_a2ui_surface", {"view": "requests", "surface_id": "x"})
+        self.assertFalse(invalid["ok"])
+        self.settings["HERMES_UNLIMITED_TENANT_ID"] = "tenant-b"
+        isolated = self.call("unlimited_a2ui_surface", {"view": "companies", "surface_id": "companies_2"})
+        self.assertEqual(isolated["version"], "1.0")
+        self.assertNotIn("Research Firm", json.dumps(isolated))
+
     def test_dispatch_idempotent_and_scoped(self):
         self.call("unlimited_company_create", {"company_id": "company-a", "display_name": "A"})
         self.call("unlimited_service_publish", {"company_id": "company-a", "service_id": "brief",
