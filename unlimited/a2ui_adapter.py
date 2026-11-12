@@ -69,10 +69,23 @@ def validate_envelope(envelope):
                     children = node[key] if key == "children" else [node[key]]
                     if not isinstance(children, list) or any(x not in ids for x in children):
                         raise A2UIValidationError("INVALID_CHILD_REFERENCE")
+            # This adapter is an output builder, not a general A2UI parser.
+            # Lock down every emitted field to prevent executable functions,
+            # bindings or actions from being smuggled through passive nodes.
+            fields = {
+                "Column": {"id", "component", "children"},
+                "Row": {"id", "component", "children"},
+                "Card": {"id", "component", "child"},
+                "Text": {"id", "component", "text"},
+            }
             if node["component"] == "Button":
-                # Events are intentionally forbidden until a host dispatcher
-                # enforces JustYou and capability authorization at invocation.
                 raise A2UIValidationError("INTERACTIVE_ACTION_UNBOUND")
+            if set(node) != fields[node["component"]]:
+                raise A2UIValidationError("UNEXPECTED_COMPONENT_FIELDS")
+            if node["component"] == "Text" and not isinstance(node["text"], str):
+                raise A2UIValidationError("UNSAFE_DYNAMIC_CONTENT")
+            if node["component"] in {"Column", "Row"} and not isinstance(node["children"], list):
+                raise A2UIValidationError("INVALID_CHILDREN")
     elif kind == "updateDataModel":
         if set(body) != {"surfaceId", "path", "value"} or body["path"] != "/":
             raise A2UIValidationError("INVALID_DATA_UPDATE")
