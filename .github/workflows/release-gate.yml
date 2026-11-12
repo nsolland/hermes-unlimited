@@ -1,0 +1,28 @@
+name: Release gate
+on:
+  pull_request:
+  push:
+    branches: [main]
+    tags: ['v*']
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate version and release policy
+        run: python scripts/check_release.py
+      - name: Run offline regression tests
+        run: python -m unittest discover -s tests -q
+      - name: Reject tracked credentials
+        run: |
+          if git grep -IlE -- '(ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{30,}|-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----)' -- ':!scripts/check_release.py'; then
+            echo 'Potential credential in tracked files'; exit 1
+          fi
