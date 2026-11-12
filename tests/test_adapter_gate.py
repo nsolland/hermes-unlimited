@@ -22,7 +22,9 @@ class AdapterGateTests(unittest.TestCase):
         self.approval = {'id':'sample','module':'unlimited.sample','status':'approved',
             'version':'1.0.0','sha256':hashlib.sha256(self.source.read_bytes()).hexdigest(),
             'source_path':'unlimited/sample.py','host_scope':'tenant-a','capabilities':['read'],
-            'reviewer':'maintainer','evidence':'test:sha256'}
+            'reviewer':'maintainer','evidence':'test:sha256',
+            'checks':{'unit':'passed','contract':'passed','security':'passed','integration':'passed'},
+            'tested_version':'1.0.0','tested_sha256':hashlib.sha256(self.source.read_bytes()).hexdigest()}
         self.save()
 
     def save(self):
@@ -46,6 +48,26 @@ class AdapterGateTests(unittest.TestCase):
 
     def test_source_tampering_is_denied(self):
         self.source.write_text('VALUE=2\n')
+        with self.assertRaises(AdapterDenied): self.authorize()
+
+    def test_failed_mandatory_test_revokes_access(self):
+        self.approval['checks']['security']='failed';self.save()
+        with self.assertRaises(AdapterDenied): self.authorize()
+
+    def test_pending_test_revokes_access(self):
+        self.approval['checks']['integration']='pending';self.save()
+        with self.assertRaises(AdapterDenied): self.authorize()
+
+    def test_missing_test_evidence_revokes_access(self):
+        del self.approval['checks'];self.save()
+        with self.assertRaises(AdapterDenied): self.authorize()
+
+    def test_stale_test_digest_revokes_access(self):
+        self.approval['tested_sha256']='0'*64;self.save()
+        with self.assertRaises(AdapterDenied): self.authorize()
+
+    def test_stale_test_version_revokes_access(self):
+        self.approval['tested_version']='0.9.0';self.save()
         with self.assertRaises(AdapterDenied): self.authorize()
 
     def test_wrong_scope_is_denied(self):

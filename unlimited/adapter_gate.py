@@ -64,6 +64,18 @@ def authorize_adapter(adapter_id, *, catalog_path, approvals_path, host_scope, c
         raise AdapterDenied('CAPABILITY_DENIED')
     if not record.get('reviewer') or not record.get('evidence'):
         raise AdapterDenied('REVIEW_EVIDENCE_REQUIRED')
+    # Approval is valid only while the exact pinned build has passing
+    # mandatory tests and security checks. Missing/failed/stale = denied.
+    checks = record.get('checks')
+    if not isinstance(checks, dict) or not checks:
+        raise AdapterDenied('TEST_EVIDENCE_MISSING')
+    mandatory = ('unit', 'contract', 'security', 'integration')
+    if any(checks.get(name) != 'passed' for name in mandatory):
+        raise AdapterDenied('REQUIRED_CHECK_NOT_GREEN')
+    if record.get('tested_sha256') != digest:
+        raise AdapterDenied('TESTED_DIGEST_MISMATCH')
+    if record.get('tested_version') != version:
+        raise AdapterDenied('TESTED_VERSION_MISMATCH')
     module_path = record.get('source_path')
     if not isinstance(module_path, str):
         raise AdapterDenied('SOURCE_NOT_PINNED')
