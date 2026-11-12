@@ -1,9 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="284" height="36" viewBox="0 0 284 36" role="img" aria-label="Hermes Unlimited by REHT Research Group">
- <title>Hermes Unlimited · REHT Research Group</title>
- <rect width="284" height="36" rx="8" fill="#101f38"/>
- <rect x="1" y="1" width="282" height="34" rx="7" fill="none" stroke="#d6ad60" stroke-width="1.5"/>
- <path d="M17 22 L24 10 L30 18 L37 10 L44 22 Z" fill="none" stroke="#d6ad60" stroke-width="2" stroke-linejoin="round"/>
- <text x="54" y="22.5" fill="#fff" font-family="Arial,Helvetica,sans-serif" font-size="15" font-weight="700">Hermes Unlimited</text>
- <path d="M205 8 V28" stroke="#d6ad60" stroke-width="1"/>
- <text x="217" y="22.5" fill="#d6ad60" font-family="Arial,Helvetica,sans-serif" font-size="13" font-weight="700">REHT</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="44" viewBox="0 0 320 44" role="img" aria-labelledby="title">
+ <title id="title">hermes unlimited — BY REHT</title>
+ <defs><linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9D713A"/><stop offset=".34" stop-color="#E5C68D"/><stop offset=".65" stop-color="#C9A76A"/><stop offset="1" stop-color="#94652D"/></linearGradient></defs>
+ <rect width="320" height="44" rx="7" fill="#0B0F17"/>
+ <path d="M23 22 C18 14.6 14 11.4 9 11.4 C3.4 11.4 .4 16 .4 22 C.4 28 3.4 32.6 9 32.6 C14 32.6 18 29.4 23 22 C28 14.6 32 11.4 37 11.4 C42.6 11.4 45.6 16 45.6 22 C45.6 28 42.6 32.6 37 32.6 C32 32.6 28 29.4 23 22" transform="translate(10 0) scale(.8 1)" fill="none" stroke="url(#gold)" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+ <text x="56" y="21" fill="#F8F9F5" font-family="Inter,Helvetica Neue,Arial,sans-serif" font-size="19" font-weight="300" letter-spacing=".3">hermes unlimited</text>
+ <text x="58" y="34" fill="#C9A76A" font-family="Inter,Helvetica Neue,Arial,sans-serif" font-size="9" letter-spacing="2.8">BY REHT</text>
 </svg>
