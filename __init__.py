@@ -53,8 +53,13 @@ def _modules():
 
 def register(ctx):
     def scoped_secret(name, default=""):
-        from agent.secret_scope import get_secret
-        return get_secret(name, default)
+        # Only the JustYou session credential is a secret. Other values live in
+        # the native Hermes plugin settings (config.yaml), scoped by plugin id.
+        if name == "HERMES_UNLIMITED_JUSTYOU_SESSION_TOKEN":
+            from agent.secret_scope import get_secret
+            return get_secret(name, default)
+        getter = getattr(ctx, "get_config", None)
+        return getter(name, default) if callable(getter) else default
 
     def scoped_identity():
         JustYouVerifier, _ = _modules()
