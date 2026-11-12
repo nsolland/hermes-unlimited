@@ -4,6 +4,10 @@ No direct T3 execution, no alternative authority path, and no credentials stored
 The trusted host must scope each call to its authenticated company and project.
 """
 
+import re
+
+_THREAD_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
+
 
 class T3ClientError(RuntimeError):
     pass
@@ -39,9 +43,14 @@ class T3WorldCommanderClient:
             raise T3ClientError("thread ID missing")
         if result.get("completed") is not False:
             raise T3ClientError("start is not completion")
+        if result.get("project_id") != self._project:
+            raise T3ClientError("T3 returned another project")
         return result
 
     def read(self, thread_id):
-        if not isinstance(thread_id, str) or not thread_id or not thread_id.replace("_", "").replace("-", "").isalnum():
+        if not isinstance(thread_id, str) or not _THREAD_ID.fullmatch(thread_id):
             raise ValueError("invalid thread ID")
-        return self._call("t3.show", thread_id=thread_id)
+        result = self._call("t3.show", thread_id=thread_id)
+        if result.get("project_id") != self._project or result.get("thread_id") != thread_id:
+            raise T3ClientError("T3 readback scope mismatch")
+        return result

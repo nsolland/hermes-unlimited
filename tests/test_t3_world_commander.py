@@ -7,13 +7,21 @@ class T3ClientTests(unittest.TestCase):
         calls = []
         def dispatcher(operation, **kwargs):
             calls.append((operation, kwargs))
-            return {"thread_id": "thread_1", "completed": False,
-                    "verified": False, "evidence_ref": "effect_1"}
+            return {"thread_id": "mcp:thread-1", "completed": False,
+                    "verified": False, "evidence_ref": "effect_1",
+                    "project_id": "project_1"}
         client = T3WorldCommanderClient(dispatcher, tenant="tenant-a", project_id="project_1")
-        self.assertEqual(client.start("Fix a test")["thread_id"], "thread_1")
-        client.read("thread_1")
+        self.assertEqual(client.start("Fix a test")["thread_id"], "mcp:thread-1")
+        client.read("mcp:thread-1")
         self.assertEqual(calls[0], ("t3.start", {"tenant": "tenant-a", "project_id": "project_1", "instruction": "Fix a test"}))
         self.assertEqual(calls[1][1]["tenant"], "tenant-a")
+
+    def test_readback_scope_mismatch(self):
+        client = T3WorldCommanderClient(lambda *_a, **_k: {
+            "thread_id": "mcp:thread-1", "project_id": "other", "verified": False,
+            "evidence_ref": "effect_1", "completed": True}, tenant="tenant-a", project_id="project_1")
+        with self.assertRaises(T3ClientError):
+            client.read("mcp:thread-1")
 
     def test_fail_closed(self):
         client = T3WorldCommanderClient(lambda *_a, **_k: {}, tenant="tenant-a", project_id="project_1")
@@ -21,11 +29,11 @@ class T3ClientTests(unittest.TestCase):
             client.start("Fix a test")
         with self.assertRaises(ValueError):
             client.read("../escape")
-        client = T3WorldCommanderClient(lambda *_a, **_k: {"thread_id": "thread_1", "completed": True,
+        client = T3WorldCommanderClient(lambda *_a, **_k: {"thread_id": "mcp:thread-1", "completed": True,
                                                            "evidence_ref": "r"}, tenant="tenant-a", project_id="project_1")
         with self.assertRaises(T3ClientError):
             client.start("Fix a test")
-        client = T3WorldCommanderClient(lambda *_a, **_k: {"thread_id": "thread_1", "completed": False,
+        client = T3WorldCommanderClient(lambda *_a, **_k: {"thread_id": "mcp:thread-1", "completed": False,
                                                            "verified": True, "evidence_ref": "r"}, tenant="tenant-a", project_id="project_1")
         with self.assertRaises(T3ClientError):
             client.start("Fix a test")
