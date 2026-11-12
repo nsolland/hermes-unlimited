@@ -7,14 +7,16 @@ Enable a provider to create, operate, and sell AI-native companies and services 
 
 | Component | Responsibility | Status |
 | --- | --- | --- |
-| Hermes plugin entrypoint | Register tools, hooks and CLI without core override | Skeleton implemented |
-| Provider control plane | Own company templates, catalog and customer lifecycle | Contract only |
-| Company/tenant boundary | Isolate identity, storage, roles, costs and results | Contract only |
-| JustYou | Mandatory verified identity binding before effects | Interface only |
-| Company orchestration | Provision roles, tasks, model routing and lifecycle | Interface only |
-| Service catalog and billing | Package, meter and invoice provider services | Interface only |
-| Result harvesting | Return outcome and evidence, not a success guess | Interface only |
-| Optional adapters | Captain's Bridge, Jackets, Veritas, The Thread, channels and compute | Deferred |
+| Hermes plugin entrypoint | Register 17 native tools without Hermes core override | Implemented (`__init__.py`, `plugin.yaml`) |
+| Provider control plane | Tenant-scoped company, service, request, and mission registry | Implemented (`unlimited/runtime.py`) |
+| Company/tenant boundary | Isolate identity, SQLite storage, Kanban boards, costs and results | Implemented (`unlimited/runtime.py`, `unlimited/hermes_kanban.py`) |
+| JustYou | Mandatory verified identity + signed profile binding before effects | Implemented (`unlimited/justyou.py`, `unlimited/justyou_host.py`) |
+| Autonomous Completion Engine | Decompose business objectives into crew DAGs, recover from failures, checkpoint/resume | Implemented (`unlimited/autonomy.py`) |
+| Economic Intelligence & AI Bridge Router | Continuous marginal EV stopping engine + static, dynamic & outcome-driven routing | Implemented (`unlimited/economics.py`) |
+| Independent Outcome Verifier | Deterministic deliverable, invariant, and skeptic-gate verification (`independently_verified`) | Implemented (`unlimited/autonomy.py`) |
+| Company Memory & Service Factory | Epistemically separated memory (`RECORDED_UNVERIFIED` vs `VERIFIED_OUTCOME`) + blueprint synthesis | Implemented (`unlimited/memory_factory.py`) |
+| Socratic Council | Blind multi-lens deliberation preserving dissent with `execution_authority=False` | Implemented (`unlimited/socratic_council.py`, `unlimited/tools.py`) |
+| Captain's Bridge A2UI 1.0 | Read-only A2UI 1.0 Basic Catalog surfaces (`companies`, `requests`, `missions`) + loopback bridge | Implemented (`unlimited/a2ui_adapter.py`, `unlimited/a2ui_bridge.py`) |
 
 ## Trust and execution
 Observation and planning do not grant execution authority. A task receipt records an outcome, not a permit. The runtime must refuse effects if mandatory JustYou binding is absent or invalid. Credentials are requested through the Hermes profile-scoped secret API, not read from token files. Provider and customer tenants never share identities or data by default.

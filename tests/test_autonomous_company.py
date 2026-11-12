@@ -1,0 +1,655 @@
+"""Comprehensive tests for Autonomous Mission Engine, Economic Intelligence,
+Company Memory, Service Factory, Blocked Dispatch Recovery, and Security Boundaries.
+"""
+from __future__ import annotations
+
+import importlib.util
+import json
+import pathlib
+import sys
+import tempfile
+import types
+import unittest
+from types import SimpleNamespace
+from unittest.mock import patch
+
+from unlimited.a2ui_adapter import mission_surface
+from unlimited.autonomy import (
+    AutonomousMissionEngine,
+    BusinessObjective,
+    IndependentOutcomeVerifier,
+    StepWorkerResult,
+    WorkStep,
+    default_deterministic_worker,
+)
+from unlimited.benchmark import run_routing_comparison
+from unlimited.economics import (
+    EconomicIntelligenceEngine,
+    EconomicPolicy,
+    ModelRouter,
+)
+from unlimited.memory_factory import CompanyMemoryStore, ServiceFactory
+from unlimited.runtime import ProviderStore, UnverifiedIdentity
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+
+
+class AutonomousCompanyTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temp = tempfile.TemporaryDirectory()
+        self.db_path = pathlib.Path(self.temp.name) / "unlimited.sqlite"
+        self.verify = (
+            lambda provider, tenant, identity: (provider, tenant, identity)
+            == ("owner", "tenant-a", "@captain")
+        )
+        self.store = ProviderStore(self.db_path, self.verify)
+        self.store.create_company("owner", "tenant-a", "valocorp", "Valo Corp", "@captain")
+        self.memory = CompanyMemoryStore(self.db_path, self.verify)
+        self.factory = ServiceFactory(self.db_path, self.verify)
+
+    def tearDown(self) -> None:
+        self.temp.cleanup()
+
+    def _objective(self, **overrides) -> BusinessObjective:
+        defaults = dict(
+            objective_id="obj-alpha",
+            company_id="valocorp",
+            title="Autonomous Revenue Operations Audit",
+            description="Deliver verified revenue leakage analysis and remediation plan.",
+            target_value_minor=4_000,
+            currency="NOK",
+            required_deliverables=(
+                "executive_summary",
+                "action_plan",
+                "quantified_impact",
+                "risk_mitigations",
+            ),
+            policy=EconomicPolicy(
+                currency="NOK",
+                budget_ceiling_minor=5_000,
+                sla_seconds=240.0,
+                max_step_attempts=3,
+            ),
+        )
+        defaults.update(overrides)
+        return BusinessObjective(**defaults)
+
+    def test_1_normal_autonomous_operation_and_stop_when_complete(self) -> None:
+        engine = AutonomousMissionEngine(
+            verify_identity=self.verify,
+            routing_strategy="outcome_driven",
+        )
+        report = engine.execute_objective(
+            provider_id="owner",
+            tenant_id="tenant-a",
+            identity="@captain",
+            objective=self._objective(),
+        )
+        self.assertEqual(report.status, "VERIFIED_COMPLETE")
+        self.assertTrue(report.independently_verified)
+        self.assertEqual(report.verified_value_minor, 4_000)
+        self.assertGreater(report.net_economic_value_minor, 0.0)
+        self.assertEqual(report.human_interventions_required, 0)
+        self.assertEqual(report.failures_detected, 0)
+        self.assertEqual(report.total_model_calls, 4)
+        # Verify post-completion stopping gate fired
+        self.assertEqual(report.ev_decisions[-1]["verdict"], "STOP_OBJECTIVE_COMPLETE")
+        self.assertFalse(report.ev_decisions[-1]["economically_justified"])
+
+    def test_2_failure_detection_and_autonomous_recovery(self) -> None:
+        calls = []
+
+        def flaky_worker(step, model_id, attempt, ctx, hints):
+            calls.append((step.step_id, model_id, attempt, hints))
+            if step.step_id == "step-2-research" and attempt == 1:
+                return StepWorkerResult(
+                    status="runtime_error",
+                    output=None,
+                    input_tokens=300,
+                    output_tokens=0,
+                    latency_sec=1.5,
+                    error_message="SANDBOX_WORKER_CRASH",
+                )
+            return default_deterministic_worker(step, model_id, attempt, ctx, hints)
+
+        engine = AutonomousMissionEngine(
+            verify_identity=self.verify,
+            routing_strategy="outcome_driven",
+            worker=flaky_worker,
+        )
+        report = engine.execute_objective(
+            provider_id="owner",
+            tenant_id="tenant-a",
+            identity="@captain",
+            objective=self._objective(),
+        )
+        self.assertEqual(report.status, "VERIFIED_COMPLETE")
+        self.assertTrue(report.independently_verified)
+        self.assertEqual(report.failures_detected, 1)
+        self.assertEqual(report.autonomous_recoveries, 1)
+        self.assertGreater(report.recovery_spend_minor, 0.0)
+        self.assertEqual(report.human_interventions_required, 0)
+
+    def test_3_interrupted_execution_and_checkpoint_resume(self) -> None:
+        engine = AutonomousMissionEngine(verify_identity=self.verify)
+        obj = self._objective(objective_id="obj-resume")
+        partial = engine.execute_objective(
+            provider_id="owner",
+            tenant_id="tenant-a",
+            identity="@captain",
+            objective=obj,
+            interrupt_after_steps=2,
+        )
+        self.assertEqual(partial.status, "INTERRUPTED_CHECKPOINTED")
+        self.assertFalse(partial.independently_verified)
+        self.assertEqual(partial.verified_value_minor, 0)
+        self.assertEqual(partial.total_model_calls, 2)
+
+        # Resume from checkpoint: steps 1 and 2 must NOT be re-executed
+        resumed = engine.execute_objective(
+            provider_id="owner",
+            tenant_id="tenant-a",
+            identity="@captain",
+            objective=obj,
+            checkpoint=partial.checkpoint_state,
+        )
+        self.assertEqual(resumed.status, "VERIFIED_COMPLETE")
+        self.assertTrue(resumed.independently_verified)
+        self.assertEqual(resumed.total_model_calls, 4)
+        self.assertEqual(resumed.verified_value_minor, 4_000)
+
+        # Cross-tenant checkpoint resume must fail closed
+        with self.assertRaises(PermissionError):
+            engine.execute_objective(
+                provider_id="owner",
+                tenant_id="tenant-b",
+                identity="@captain",
+                objective=obj,
+                checkpoint=partial.checkpoint_state,
+            )
+
+    def test_4_incorrect_model_output_rejected_and_repaired(self) -> None:
+        def bad_first_build_worker(step, model_id, attempt, ctx, hints):
+            if step.step_id == "step-3-build" and attempt == 1:
+                # Emit placeholder output that claims success but violates quality gate
+                return StepWorkerResult(
+                    status="ok",
+                    output={
+                        "executive_summary": "TODO: fill in later",
+                        "action_plan": "Valid plan here",
+                        "quantified_impact": "Valid impact here",
+                        "risk_mitigations": "Valid mitigations here",
+                    },
+                    input_tokens=900,
+                    output_tokens=200,
+                    latency_sec=2.0,
+                )
+            return default_deterministic_worker(step, model_id, attempt, ctx, hints)
+
+        engine = AutonomousMissionEngine(
+            verify_identity=self.verify,
+            worker=bad_first_build_worker,
+        )
+        report = engine.execute_objective(
+            provider_id="owner",
+            tenant_id="tenant-a",
+            identity="@captain",
+            objective=self._objective(objective_id="obj-bad-output"),
+        )
+        self.assertEqual(report.status, "VERIFIED_COMPLETE")
+        self.assertTrue(report.independently_verified)
+        self.assertEqual(report.failures_detected, 1)
+        self.assertEqual(report.autonomous_recoveries, 1)
+        self.assertIn("repaired after 1 diagnostic feedback", report.deliverables["executive_summary"])
+
+    def test_5_routing_failure_and_automatic_model_reroute(self) -> None:
+        models_tried = []
+
+        def outage_worker(step, model_id, attempt, ctx, hints):
+            models_tried.append((step.step_id, model_id, attempt))
+            if step.step_id == "step-1-triage" and attempt == 1:
+                return StepWorkerResult(
+                    status="routing_error",
+                    output=None,
+                    input_tokens=0,
+                    output_tokens=0,
+                    latency_sec=0.2,
+                    error_message="PROVIDER_ROUTE_503",
+                )
+            return default_deterministic_worker(step, model_id, attempt, ctx, hints)
+
+        engine = AutonomousMissionEngine(
+            verify_identity=self.verify,
+            routing_strategy="outcome_driven",
+            worker=outage_worker,
+        )
+        report = engine.execute_objective(
+            provider_id="owner",
+            tenant_id="tenant-a",
+            identity="@captain",
+            objective=self._objective(objective_id="obj-route-fail"),
+        )
+        self.assertEqual(report.status, "VERIFIED_COMPLETE")
+        self.assertEqual(report.failures_detected, 1)
+        self.assertEqual(report.autonomous_recoveries, 1)
+        # First attempt and second attempt on step-1-triage used different models
+        step1_models = [m for s, m, _ in models_tried if s == "step-1-triage"]
+        self.assertEqual(len(step1_models), 2)
+        self.assertNotEqual(step1_models[0], step1_models[1])
+
+    def test_6_duplicate_actions_prevented_by_idempotency_and_service_factory(self) -> None:
+        engine = AutonomousMissionEngine(verify_identity=self.verify)
+        obj = self._objective(objective_id="obj-idem")
+        first = engine.execute_objective(
+            provider_id="owner",
+            tenant_id="tenant-a",
+            identity="@captain",
+            objective=obj,
+        )
+        self.assertEqual(first.total_model_calls, 4)
+        self.assertEqual(first.duplicate_actions_prevented, 0)
+
+        # Re-running the same objective scope uses idempotency ledger with 0 model calls
+        second = engine.execute_objective(
+            provider_id="owner",
+            tenant_id="tenant-a",
+            identity="@captain",
+            objective=obj,
+        )
+        self.assertEqual(second.status, "VERIFIED_COMPLETE")
+        self.assertEqual(second.total_model_calls, 0)
+        self.assertEqual(second.duplicate_actions_prevented, 4)
+        self.assertEqual(second.direct_cost_minor, 0.0)
+
+        # Service Factory rejects duplicate minting from the same execution evidence digest
+        bp = self.factory.synthesize_from_mission(
+            provider="owner",
+            tenant="tenant-a",
+            company="valocorp",
+            identity="@captain",
+            service_id="rev-audit",
+            title="Revenue Audit Service",
+            report=first,
+            provider_store=self.store,
+        )
+        self.assertTrue(bp.published_to_catalog)
+        with self.assertRaisesRegex(ValueError, "DUPLICATE_EXECUTION_EVENT"):
+            self.factory.synthesize_from_mission(
+                provider="owner",
+                tenant="tenant-a",
+                company="valocorp",
+                identity="@captain",
+                service_id="rev-audit-2",
+                title="Duplicate Service",
+                report=first,
+            )
+
+    def test_7_cost_escalation_budget_sla_and_negative_ev_stopping(self) -> None:
+        engine = AutonomousMissionEngine(verify_identity=self.verify)
+
+        # Case A: Negative EV objective (target_value_minor=3 < step execution cost)
+        neg_ev_obj = self._objective(objective_id="obj-neg-ev", target_value_minor=3)
+        neg_report = engine.execute_objective(
+            provider_id="owner",
+            tenant_id="tenant-a",
+            identity="@captain",
+            objective=neg_ev_obj,
+        )
+        self.assertEqual(neg_report.status, "STOPPED_NEGATIVE_EV")
+        self.assertFalse(neg_report.independently_verified)
+        self.assertEqual(neg_report.total_model_calls, 0)
+        self.assertEqual(neg_report.direct_cost_minor, 0.0)
+
+        # Case B: Tight budget ceiling (budget_ceiling_minor=2) halts before overspending
+        tight_budget_obj = self._objective(
+            objective_id="obj-tight-budget",
+            target_value_minor=5_000,
+            policy=EconomicPolicy(budget_ceiling_minor=2, sla_seconds=240.0),
+        )
+        budget_report = engine.execute_objective(
+            provider_id="owner",
+            tenant_id="tenant-a",
+            identity="@captain",
+            objective=tight_budget_obj,
+        )
+        self.assertEqual(budget_report.status, "STOPPED_BUDGET_EXCEEDED")
+        self.assertEqual(budget_report.total_model_calls, 0)
+
+        # Case C: Tight SLA ceiling (sla_seconds=1.0) halts before violating SLA
+        tight_sla_obj = self._objective(
+            objective_id="obj-tight-sla",
+            target_value_minor=5_000,
+            policy=EconomicPolicy(budget_ceiling_minor=5_000, sla_seconds=1.0),
+        )
+        sla_report = engine.execute_objective(
+            provider_id="owner",
+            tenant_id="tenant-a",
+            identity="@captain",
+            objective=tight_sla_obj,
+        )
+        self.assertEqual(sla_report.status, "STOPPED_SLA_EXCEEDED")
+
+        # Case D: Human intervention unjustified when human supervision cost > marginal value
+        econ = EconomicIntelligenceEngine(
+            policy=EconomicPolicy(human_intervention_cost_minor=2_500, budget_ceiling_minor=10_000)
+        )
+        human_dec = econ.evaluate_next_action(
+            task_kind="implementation",
+            candidate_model_id="gemini-4-argon",
+            marginal_value_minor=1_200,
+            require_human_supervision=True,
+        )
+        self.assertEqual(human_dec.verdict, "STOP_HUMAN_INTERVENTION_UNJUSTIFIED")
+        self.assertFalse(human_dec.economically_justified)
+
+    def test_8_incomplete_business_outcomes_rejected_by_independent_verifier(self) -> None:
+        # Objective requires a custom domain invariant that the worker fails to satisfy
+        obj = self._objective(
+            objective_id="obj-strict-invariant",
+            acceptance_criteria={
+                "required_terms": ("iso-27001-annex-a",),
+            },
+        )
+        engine = AutonomousMissionEngine(verify_identity=self.verify)
+        report = engine.execute_objective(
+            provider_id="owner",
+            tenant_id="tenant-a",
+            identity="@captain",
+            objective=obj,
+        )
+        # Even though all 4 agent steps returned status="ok", the independent outcome
+        # verifier detects the missing required domain evidence and refuses verification!
+        self.assertEqual(report.status, "STOPPED_UNVERIFIED_OUTCOME")
+        self.assertFalse(report.independently_verified)
+        self.assertTrue(report.verification.agent_claimed_complete)
+        self.assertEqual(report.verified_value_minor, 0)
+        self.assertLess(report.net_economic_value_minor, 0.0)
+        self.assertIn("missing_required_term:iso-27001-annex-a", report.verification.checks_failed)
+
+        # Service Factory must refuse to synthesize a service from an unverified mission
+        with self.assertRaisesRegex(ValueError, "INDEPENDENT_VERIFICATION_REQUIRED"):
+            self.factory.synthesize_from_mission(
+                provider="owner",
+                tenant="tenant-a",
+                company="valocorp",
+                identity="@captain",
+                service_id="bad-svc",
+                title="Unverified Service",
+                report=report,
+            )
+
+    def test_9_company_memory_epistemic_separation_and_tenant_isolation(self) -> None:
+        # Unverified self-report is stored as RECORDED_UNVERIFIED
+        unv = self.memory.record_unverified(
+            provider="owner",
+            tenant="tenant-a",
+            company="valocorp",
+            identity="@captain",
+            task_kind="triage",
+            source_id="task-101",
+            lesson="Self-reported agent note without independent proof.",
+        )
+        self.assertFalse(unv["independently_verified"])
+        self.assertEqual(unv["classification"], "RECORDED_UNVERIFIED")
+        # Duplicate harvest is recognized
+        dup = self.memory.record_unverified(
+            provider="owner",
+            tenant="tenant-a",
+            company="valocorp",
+            identity="@captain",
+            task_kind="triage",
+            source_id="task-101",
+            lesson="Self-reported agent note without independent proof.",
+        )
+        self.assertTrue(dup["duplicate"])
+
+        # verified_only=True excludes RECORDED_UNVERIFIED entries
+        self.assertEqual(
+            self.memory.recall(
+                provider="owner",
+                tenant="tenant-a",
+                company="valocorp",
+                identity="@captain",
+                verified_only=True,
+            ),
+            [],
+        )
+
+        # Cross-tenant recall fails closed
+        with self.assertRaises(UnverifiedIdentity):
+            self.memory.recall(
+                provider="owner",
+                tenant="tenant-b",
+                company="valocorp",
+                identity="@captain",
+            )
+
+    def test_10_native_tools_and_blocked_dispatch_recovery(self) -> None:
+        settings = {
+            "HERMES_UNLIMITED_PROVIDER_ID": "owner",
+            "HERMES_UNLIMITED_TENANT_ID": "tenant-a",
+            "HERMES_UNLIMITED_JUSTYOU_IDENTITY": "@owner",
+            "HERMES_UNLIMITED_JUSTYOU_SESSION_TOKEN": "session",
+            "HERMES_UNLIMITED_REGISTRY_DB": str(pathlib.Path(self.temp.name) / "tools.sqlite"),
+        }
+        agent = types.ModuleType("agent")
+        agent.__path__ = []
+        scope = types.ModuleType("agent.secret_scope")
+        scope.get_secret = lambda name, default="": settings.get(name, default)
+
+        class SessionStore:
+            def validate(self, token, audience, required_scope):
+                return SimpleNamespace(
+                    valid=True, authority=False, address="@owner",
+                    audience=audience, scopes=("read-profile",),
+                )
+
+        class Binding:
+            identity, carrier, endpoint, version = "@owner", "hermes-profile", "hermes-profile:role-a", 1
+            def digest(self):
+                return "digest"
+
+        class Resolver:
+            def resolve(self, identity, **_kwargs):
+                return Binding(), SimpleNamespace(
+                    identity=identity, binding_digest="digest",
+                    resolved_version=1, status="RESOLVED",
+                )
+
+        ctx = SimpleNamespace(
+            profile_name="role-a",
+            justyou_session_store=SessionStore(),
+            justyou_resolver=Resolver(),
+            handlers={},
+        )
+        ctx.register_tool = lambda name, toolset, schema, handler: ctx.handlers.__setitem__(name, handler)
+
+        submissions = []
+        task_state = {"status": "blocked"}
+
+        class FakeKanban:
+            def __init__(self, **_kwargs):
+                pass
+            def enqueue(self, **kwargs):
+                submissions.append(kwargs)
+                return {"task_id": f"task-{len(submissions)}"}
+            def result(self, **_kwargs):
+                return {
+                    "found": True,
+                    "completed": task_state["status"] == "done",
+                    "status": task_state["status"],
+                    "independently_verified": False,
+                }
+
+        with patch.dict(sys.modules, {"agent": agent, "agent.secret_scope": scope}), \
+                patch("unlimited.hermes_kanban.HermesKanban", FakeKanban):
+            spec = importlib.util.spec_from_file_location("hu_entry", ROOT / "__init__.py")
+            plugin = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(plugin)
+            plugin.register(ctx)
+
+            call = lambda name, args=None: json.loads(ctx.handlers[name](args or {}))
+
+            # 1. Create company, publish service, request service
+            self.assertTrue(call("unlimited_company_create", {"company_id": "acme", "display_name": "Acme AI"})["created"])
+            self.assertTrue(call("unlimited_service_publish", {
+                "company_id": "acme", "service_id": "ops", "title": "Ops",
+                "price_minor": 1500, "currency": "NOK",
+            })["published"])
+            req = call("unlimited_service_request", {
+                "company_id": "acme", "service_id": "ops", "request_id": "r1", "payload": {"k": "v"},
+            })
+            self.assertEqual(req["task_id"], "task-1")
+
+            # 2. Task fails ('blocked') in Kanban -> record result -> recover via service_dispatch!
+            res1 = call("unlimited_service_result", {"company_id": "acme", "request_id": "r1"})
+            self.assertEqual(res1["status"], "blocked")
+            recovered = call("unlimited_service_dispatch", {"company_id": "acme", "request_id": "r1"})
+            self.assertTrue(recovered["recovered"])
+            self.assertEqual(recovered["task_id"], "task-2")
+            self.assertEqual(recovered["previous_task_id"], "task-1")
+            self.assertEqual(recovered["attempts"], 2)
+
+            # 3. Run autonomous mission via native tool
+            m_out = call("unlimited_mission_run", {
+                "company_id": "acme",
+                "objective_id": "mission-q4",
+                "title": "Q4 Autonomous Expansion Plan",
+                "target_value_minor": 3500,
+                "routing_strategy": "outcome_driven",
+            })
+            self.assertTrue(m_out["ok"])
+            self.assertEqual(m_out["status"], "VERIFIED_COMPLETE")
+            self.assertTrue(m_out["independently_verified"])
+
+            # 4. Recall verified memory lesson harvested from the mission
+            mem_out = call("unlimited_memory_recall", {
+                "company_id": "acme", "verified_only": True,
+            })
+            self.assertTrue(mem_out["ok"])
+            self.assertEqual(len(mem_out["entries"]), 1)
+            self.assertEqual(mem_out["entries"][0]["classification"], "VERIFIED_OUTCOME")
+
+            # 5. Promote verified mission to Service Factory blueprint and published service
+            sf_out = call("unlimited_service_factory", {
+                "company_id": "acme",
+                "objective_id": "mission-q4",
+                "service_id": "q4-expansion-pkg",
+                "title": "Q4 Expansion Package",
+            })
+            self.assertTrue(sf_out["ok"])
+            self.assertTrue(sf_out["published_to_catalog"])
+
+            # 6. Render A2UI 1.0 Captain's Bridge mission surface
+            surf = call("unlimited_a2ui_surface", {
+                "view": "missions", "company_id": "acme", "surface_id": "missions_1",
+            })
+            self.assertEqual(surf["version"], "1.0")
+            self.assertIn("mission-q4", json.dumps(surf))
+            self.assertIn("VERIFIED", json.dumps(surf))
+
+            # 7. Run Socratic Council native tool
+            from unlimited.socratic_council import QUESTIONS
+            council_out = call("unlimited_socratic_council", {
+                "question": "Should Acme expand into autonomous tier-1 support?",
+                "answers": {k: f"Verified answer for {k}" for k, _ in QUESTIONS},
+            })
+            self.assertTrue(council_out["ok"])
+            self.assertFalse(council_out["execution_authority"])
+            self.assertEqual(len(council_out["digest"]), 64)
+
+    def test_11_routing_comparison_benchmark_evidence(self) -> None:
+        comparison = run_routing_comparison()
+        routes = comparison["after_autonomous_engine"]["routing_comparison"]
+        static_res = routes["static"]
+        dynamic_res = routes["dynamic"]
+        outcome_res = routes["outcome_driven"]
+
+        # All 3 strategies verify the 4 positive-EV objectives and auto-stop the 1 negative-EV trap
+        for res in (static_res, dynamic_res, outcome_res):
+            self.assertEqual(res["positive_ev_objectives_verified"], 4)
+            self.assertEqual(res["negative_ev_objectives_auto_stopped"], 1)
+            self.assertEqual(res["human_interventions_required"], 0)
+
+        # Outcome-driven routing achieves lower cost per verified outcome and higher net EV than static frontier routing
+        self.assertLess(
+            outcome_res["cost_per_verified_outcome_minor"],
+            static_res["cost_per_verified_outcome_minor"],
+        )
+        self.assertGreater(
+            outcome_res["total_net_economic_value_minor"],
+            static_res["total_net_economic_value_minor"],
+        )
+        # Outcome-driven avoids the fast-model complex-build failure that hits naive dynamic routing
+        self.assertLess(
+            outcome_res["total_model_calls"],
+            dynamic_res["total_model_calls"],
+        )
+        self.assertGreater(
+            outcome_res["total_net_economic_value_minor"],
+            dynamic_res["total_net_economic_value_minor"],
+        )
+
+    def test_12_verifier_audit_regressions_json_checkpoint_sla_reroute_and_factory_atomicity(self) -> None:
+        # 1. JSON-roundtripped checkpoint_state preserves step_receipts and verifies on resume
+        engine = AutonomousMissionEngine(verify_identity=self.verify)
+        obj = self._objective(objective_id="obj-json-ckpt")
+        partial = engine.execute_objective(
+            provider_id="owner",
+            tenant_id="tenant-a",
+            identity="@captain",
+            objective=obj,
+            interrupt_after_steps=2,
+        )
+        json_roundtripped_ckpt = json.loads(json.dumps(partial.as_dict()["checkpoint_state"]))
+        resumed = engine.execute_objective(
+            provider_id="owner",
+            tenant_id="tenant-a",
+            identity="@captain",
+            objective=obj,
+            checkpoint=json_roundtripped_ckpt,
+        )
+        self.assertEqual(resumed.status, "VERIFIED_COMPLETE")
+        self.assertTrue(resumed.independently_verified)
+
+        # 2. SLA violation on slow frontier model triggers REROUTE_MODEL to faster model when allow_reroute=True
+        econ = EconomicIntelligenceEngine(
+            policy=EconomicPolicy(budget_ceiling_minor=10_000, sla_seconds=10.0)
+        )
+        sla_reroute = econ.evaluate_next_action(
+            task_kind="triage",
+            candidate_model_id="gemini-4-carbon",  # 14.0s mean latency > 10.0s SLA
+            marginal_value_minor=1_500,
+            allow_reroute=True,
+        )
+        self.assertEqual(sla_reroute.verdict, "REROUTE_MODEL")
+        self.assertTrue(sla_reroute.economically_justified)
+        self.assertIn(sla_reroute.recommended_model_id, ("gemini-4-hydrogen", "gemini-4-argon"))
+
+        # 3. Duplicate ServiceFactory synthesis with same service_id raises DUPLICATE_EXECUTION_EVENT
+        # before touching ProviderStore.publish_service
+        self.factory.synthesize_from_mission(
+            provider="owner",
+            tenant="tenant-a",
+            company="valocorp",
+            identity="@captain",
+            service_id="ckpt-svc",
+            title="Checkpoint Service",
+            report=resumed,
+            provider_store=self.store,
+        )
+        with self.assertRaisesRegex(ValueError, "DUPLICATE_EXECUTION_EVENT"):
+            self.factory.synthesize_from_mission(
+                provider="owner",
+                tenant="tenant-a",
+                company="valocorp",
+                identity="@captain",
+                service_id="ckpt-svc",
+                title="Checkpoint Service",
+                report=resumed,
+                provider_store=self.store,
+            )
+
+
+if __name__ == "__main__":
+    unittest.main()
