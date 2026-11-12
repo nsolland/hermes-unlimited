@@ -48,6 +48,7 @@ class ToolIntegrationTests(unittest.TestCase):
         def register_tool(name, toolset, schema, handler):
             self.ctx.handlers[name] = handler
         self.ctx.register_tool = register_tool
+        self.ctx.get_config = lambda name, default="": settings.get(name, default)
         self.submissions = []
         self.kanban_unavailable = False
         outer = self
