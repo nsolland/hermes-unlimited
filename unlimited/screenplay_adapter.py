@@ -69,7 +69,7 @@ class ScreenplayAdapter:
         build: Callable[..., DemoPackage] | None = None,
     ) -> None:
         self.config = config or AdapterConfig()
-        # Optional media backend: validation and preflight require no FFmpeg.
+        # FFmpeg is optional; preflight and scenario validation must not require it.
         self.recorder = recorder
         self.build = build if build is not None else build_demo_package
 
