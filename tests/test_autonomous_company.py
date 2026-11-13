@@ -888,6 +888,231 @@ class AutonomousCompanyTests(unittest.TestCase):
         self.assertEqual(observed["model"], "qwen3.8-max")
         self.assertEqual(verdict["critic_provider_id"], "alibaba")
 
+    def test_15_catalog_normalization_edge_cases_and_malformed_profiles(self) -> None:
+        from unlimited.economics import LIVE_HERMES_MODEL_CATALOG, normalize_model_catalog
+        from unlimited.hermes_live_worker import normalize_catalog
+
+        # 1. Both tuple and mapping normalize identically
+        t_norm = normalize_model_catalog(LIVE_HERMES_MODEL_CATALOG)
+        m_norm = normalize_model_catalog(t_norm)
+        self.assertEqual(set(t_norm), set(m_norm))
+
+        # 2. Empty sequence or mapping raises ValueError
+        for fn in (normalize_model_catalog, normalize_catalog):
+            with self.assertRaisesRegex(ValueError, "MODEL_CATALOG_EMPTY|catalog must not be empty"):
+                fn(())
+            with self.assertRaisesRegex(ValueError, "MODEL_CATALOG_EMPTY|catalog must not be empty"):
+                fn({})
+
+        # 3. Duplicate model_id in sequence raises ValueError
+        first_profile = LIVE_HERMES_MODEL_CATALOG[0]
+        for fn in (normalize_model_catalog, normalize_catalog):
+            with self.assertRaisesRegex(ValueError, "DUPLICATE_MODEL_ID|duplicate model_id"):
+                fn((first_profile, first_profile))
+
+        # 4. Mapping key mismatch raises ValueError
+        for fn in (normalize_model_catalog, normalize_catalog):
+            with self.assertRaisesRegex(ValueError, "CATALOG_KEY_MISMATCH|catalog key mismatch"):
+                fn({"wrong-key": first_profile})
+
+        # 5. Malformed non-ModelProfile entry raises TypeError
+        for fn in (normalize_model_catalog, normalize_catalog):
+            with self.assertRaisesRegex(
+                TypeError,
+                "MODEL_CATALOG_ENTRY_NOT_MODEL_PROFILE|catalog entries must be ModelProfile",
+            ):
+                fn([{"model_id": "bad-dict"}])  # type: ignore[arg-type]
+
+    def test_16_verifier_signing_authority_key_custody_scope_binding_and_replay_rejection(self) -> None:
+        from unlimited.autonomy import VerifierSigningAuthority, compute_objective_policy_digest
+
+        authority_a = VerifierSigningAuthority(secret_key=b"key-custody-authority-A", key_id="auth-a")
+        authority_b = VerifierSigningAuthority(secret_key=b"key-custody-authority-B", key_id="auth-b")
+        verifier_a = IndependentOutcomeVerifier(authority=authority_a)
+        verifier_b = IndependentOutcomeVerifier(authority=authority_b)
+
+        obj = self._objective(objective_id="obj-authority-scope")
+        engine_a = AutonomousMissionEngine(verify_identity=self.verify, verifier=verifier_a)
+        report = engine_a.execute_objective(
+            provider_id="owner",
+            tenant_id="tenant-a",
+            identity="@captain",
+            objective=obj,
+        )
+        receipt = report.verification
+        self.assertTrue(receipt.independently_verified)
+        self.assertEqual(receipt.tenant_id, "tenant-a")
+        self.assertEqual(receipt.company_id, "valocorp")
+        self.assertEqual(receipt.authority_key_id, "auth-a")
+        self.assertEqual(receipt.policy_digest, compute_objective_policy_digest(obj))
+
+        # 1. Receipt signed by Authority A is rejected by Verifier with Authority B (separate key custody)
+        self.assertFalse(
+            verifier_b.verify_receipt_authenticity(
+                receipt,
+                deliverables=report.deliverables,
+                expected_tenant_id="tenant-a",
+                expected_company_id="valocorp",
+                expected_objective_id=obj.objective_id,
+            )
+        )
+
+        # 2. Scope binding: cross-tenant, cross-company, cross-objective, or policy digest mismatch rejected
+        self.assertFalse(
+            verifier_a.verify_receipt_authenticity(
+                receipt,
+                deliverables=report.deliverables,
+                expected_tenant_id="tenant-b",
+            )
+        )
+        self.assertFalse(
+            verifier_a.verify_receipt_authenticity(
+                receipt,
+                deliverables=report.deliverables,
+                expected_company_id="other-corp",
+            )
+        )
+        self.assertFalse(
+            verifier_a.verify_receipt_authenticity(
+                receipt,
+                deliverables=report.deliverables,
+                expected_objective_id="other-objective-id",
+            )
+        )
+        self.assertFalse(
+            verifier_a.verify_receipt_authenticity(
+                receipt,
+                deliverables=report.deliverables,
+                expected_policy_digest="0" * 64,
+            )
+        )
+
+        # 3. Replay protection: check_and_consume / reject_replay=True accepts first consumption and rejects replay
+        self.assertTrue(
+            verifier_a.verify_receipt_authenticity(
+                receipt,
+                deliverables=report.deliverables,
+                expected_tenant_id="tenant-a",
+                expected_company_id="valocorp",
+                expected_objective_id=obj.objective_id,
+                reject_replay=True,
+            )
+        )
+        self.assertFalse(
+            verifier_a.verify_receipt_authenticity(
+                receipt,
+                deliverables=report.deliverables,
+                expected_tenant_id="tenant-a",
+                expected_company_id="valocorp",
+                expected_objective_id=obj.objective_id,
+                reject_replay=True,
+            )
+        )
+
+    def test_17_autonomous_company_operating_system_six_governing_questions_and_readiness_matrix(self) -> None:
+        from unlimited.company_os import (
+            PRODUCT_READINESS_MATRIX,
+            AutonomousCompanyOperatingSystem,
+            CompanyCharter,
+        )
+
+        # Verify 15-area product readiness matrix completeness and honest statuses
+        self.assertEqual(len(PRODUCT_READINESS_MATRIX), 15)
+        area_names = {item["area"] for item in PRODUCT_READINESS_MATRIX}
+        self.assertIn("Captain's Bridge", area_names)
+        self.assertIn("Company Engine", area_names)
+        self.assertIn("JustYou", area_names)
+        self.assertIn("Verification / Governance", area_names)
+
+        charter = CompanyCharter(
+            company_id="valocorp",
+            display_name="Valo Corp Autonomous Ops",
+            mission_statement="Autonomous FinOps, Revenue Operations, and SLA Governance for Nordic B2B SaaS",
+            strategic_domains=("finops", "revenue", "billing", "sla", "churn"),
+            forbidden_domains=("cryptocurrency_trading", "unlicensed_legal"),
+            max_autonomous_budget_minor=6_000,
+            owner_approval_threshold_minor=5_000,
+            min_roi_hurdle_ratio=0.30,
+        )
+
+        # Candidate 1: Violates forbidden domain in charter -> TERMINATE_CHARTER_VIOLATION
+        cand_forbidden = self._objective(
+            objective_id="cand-forbidden-crypto",
+            title="Valo Corp Speculative Cryptocurrency_Trading Arbitrage",
+            target_value_minor=9_500,
+            policy=EconomicPolicy(budget_ceiling_minor=4_000),
+        )
+        # Candidate 2: Negative EV trap (5 NOK value) -> TERMINATE_NEGATIVE_EV
+        cand_negative_ev = self._objective(
+            objective_id="cand-neg-ev",
+            title="Valo Corp Billing Footer Formatting Tweak",
+            target_value_minor=5,
+            policy=EconomicPolicy(budget_ceiling_minor=1_000),
+        )
+        # Candidate 3: Exceeds owner budget authority (budget 7500 > 5000 threshold) -> MODIFY_SCOPE_OR_ESCALATE_OWNER
+        cand_over_budget = self._objective(
+            objective_id="cand-over-budget",
+            title="Valo Corp Enterprise Revenue & Billing Platform Rebuild",
+            target_value_minor=12_000,
+            policy=EconomicPolicy(budget_ceiling_minor=7_500),
+        )
+        # Candidate 4: Aligned, within autonomous budget authority, highest positive EV -> EXECUTE_AND_DELEGATE
+        cand_optimal = self._objective(
+            objective_id="cand-optimal-finops",
+            title="Valo Corp Autonomous Revenue & Billing Leakage Recovery",
+            target_value_minor=4_800,
+            policy=EconomicPolicy(budget_ceiling_minor=4_500),
+        )
+
+        company_os = AutonomousCompanyOperatingSystem(
+            database=self.db_path,
+            verify_identity=self.verify,
+        )
+        cycle = company_os.run_operating_cycle(
+            provider_id="owner",
+            tenant_id="tenant-a",
+            identity="@captain",
+            charter=charter,
+            candidate_objectives=(cand_forbidden, cand_negative_ev, cand_over_budget, cand_optimal),
+            auto_productize_services=True,
+        )
+
+        self.assertEqual(cycle.candidates_evaluated, 4)
+        self.assertEqual(cycle.objectives_executed, 1)
+        self.assertEqual(cycle.objectives_verified, 1)
+        self.assertEqual(cycle.objectives_terminated_or_deferred, 3)
+        self.assertEqual(len(cycle.mission_reports), 1)
+        self.assertEqual(cycle.mission_reports[0].objective_id, "cand-optimal-finops")
+        self.assertEqual(cycle.mission_reports[0].status, "VERIFIED_COMPLETE")
+        self.assertTrue(cycle.mission_reports[0].independently_verified)
+        self.assertEqual(cycle.human_interventions_required, 0)
+
+        # Verify all 6 governing questions are explicitly answered across the portfolio
+        by_id = {a.objective_id: a for a in cycle.six_question_assessments}
+        self.assertFalse(by_id["cand-forbidden-crypto"].q1_right_task_aligned)
+        self.assertEqual(
+            by_id["cand-forbidden-crypto"].q4_recommended_disposition,
+            "TERMINATE_CHARTER_VIOLATION",
+        )
+        self.assertFalse(by_id["cand-neg-ev"].q3_next_krone_justified)
+        self.assertEqual(
+            by_id["cand-neg-ev"].q4_recommended_disposition,
+            "TERMINATE_NEGATIVE_EV",
+        )
+        self.assertEqual(
+            by_id["cand-over-budget"].q4_recommended_disposition,
+            "MODIFY_SCOPE_OR_ESCALATE_OWNER",
+        )
+        selected_q = by_id["cand-optimal-finops"]
+        self.assertTrue(selected_q.q1_right_task_aligned)
+        self.assertFalse(selected_q.q2_better_opportunity_exists)
+        self.assertTrue(selected_q.q3_next_krone_justified)
+        self.assertEqual(selected_q.q4_recommended_disposition, "EXECUTE_AND_DELEGATE")
+        self.assertTrue(selected_q.q5_outcome_delivered_and_verified)
+        self.assertIsNotNone(selected_q.q6_published_service_id)
+        self.assertEqual(len(cycle.cycle_digest), 64)
+
+
 
 if __name__ == "__main__":
     unittest.main()

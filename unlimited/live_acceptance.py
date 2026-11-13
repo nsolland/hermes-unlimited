@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import socket
 import sys
 import tempfile
@@ -35,6 +36,13 @@ from unlimited.autonomy import (
     BusinessObjective,
     IndependentOutcomeVerifier,
     OutcomeVerificationReceipt,
+    VerifierSigningAuthority,
+)
+from unlimited.company_os import (
+    PRODUCT_READINESS_MATRIX,
+    CAVOOpportunityAllocator,
+    CompanyCharter,
+    GoalFidelityEvaluator,
 )
 from unlimited.economics import (
     LIVE_HERMES_MODEL_CATALOG,
@@ -52,6 +60,16 @@ from unlimited.memory_factory import CompanyMemoryStore, ServiceFactory
 from unlimited.runtime import ProviderStore, UnverifiedIdentity
 
 DEFAULT_EVIDENCE_PATH = REPO_ROOT / "docs" / "live_acceptance_evidence_20261112.json"
+
+# Optional provider selection for bounded acceptance when a provider has exhausted quota.
+# Does not alter production routing and never disables independent verification.
+if os.environ.get("HERMES_LIVE_ACCEPTANCE_PROVIDERS"):
+    allowed_providers = {v.strip().lower() for v in os.environ["HERMES_LIVE_ACCEPTANCE_PROVIDERS"].split(",") if v.strip()}
+    LIVE_HERMES_MODEL_CATALOG = tuple(
+        profile for profile in LIVE_HERMES_MODEL_CATALOG if profile.provider_id.lower() in allowed_providers
+    )
+    if not LIVE_HERMES_MODEL_CATALOG:
+        raise RuntimeError("LIVE_ACCEPTANCE_NO_MODELS_FOR_SELECTED_PROVIDERS")
 
 
 def check_network_available(host: str = "inference-api.nousresearch.com", port: int = 443) -> bool:
@@ -369,7 +387,6 @@ def run_live_acceptance_suite(output_path: str | Path | None = DEFAULT_EVIDENCE_
                     "status": report1.status,
                     "failures": report1.failures_detected,
                     "verification": report1.verification.as_dict(),
-                    "critic_failure": getattr(shared_critic, "last_failure", None),
                     "steps": [{"step": r.step_id, "status": r.status, "err": r.error_reason} for r in report1.step_receipts],
                 }, default=str)
             )
@@ -672,6 +689,60 @@ def run_live_acceptance_suite(output_path: str | Path | None = DEFAULT_EVIDENCE_
         # =====================================================================
         verifier_challenge = _challenge_verification_mechanism_live(shared_critic)
 
+        # =====================================================================
+        # REQUIREMENT 8: 6-Question Company Charter & CAVO Opportunity Allocation
+        # =====================================================================
+        charter = CompanyCharter(
+            company_id="valocorp",
+            display_name="Valo Corp Autonomous Ops",
+            mission_statement="Autonomous Cloud FinOps, JustYou Security Governance, and Verified SLA Automation",
+            strategic_domains=("finops", "security", "sla", "pricing", "incident", "audit"),
+            forbidden_domains=("cryptocurrency_trading", "unlicensed_legal_advice"),
+            max_autonomous_budget_minor=6_500,
+            owner_approval_threshold_minor=6_000,
+            min_roi_hurdle_ratio=0.25,
+        )
+        cavo_allocator = CAVOOpportunityAllocator(
+            economic_engine=EconomicIntelligenceEngine(models=LIVE_HERMES_MODEL_CATALOG, policy=obj1.policy),
+        )
+        portfolio_candidates = (
+            obj1,
+            BusinessObjective(
+                objective_id="obj-forbidden-crypto",
+                company_id="valocorp",
+                title="Valo Corp High-Frequency Cryptocurrency_Trading Bot",
+                description="Execute speculative cryptocurrency_trading across unregulated exchanges.",
+                target_value_minor=9_000,
+                currency="NOK",
+            ),
+            BusinessObjective(
+                objective_id="obj-negative-ev-trap",
+                company_id="valocorp",
+                title="Valo Corp FinOps Micro-Adjustment",
+                description="Audit FinOps tags for 5 NOK value.",
+                target_value_minor=5,
+                currency="NOK",
+            ),
+        )
+        ranked_portfolio = [
+            {
+                "objective_id": cand.objective_id,
+                "fidelity": GoalFidelityEvaluator.evaluate(charter, cand).as_dict(),
+                "cavo": cavo_allocator.estimate_objective_cavo(cand),
+            }
+            for cand in portfolio_candidates
+        ]
+
+        # Owner-facing Captain's Bridge A2UI 1.0 status surfaces
+        from unlimited.a2ui_adapter import mission_surface, readiness_surface
+
+        owner_missions_a2ui = mission_surface(
+            store, "owner", "tenant-a", "valocorp", "@captain", surface_id="live_missions"
+        )
+        owner_readiness_a2ui = readiness_surface(
+            store, "owner", "tenant-a", "@captain", surface_id="live_readiness"
+        )
+
         # Aggregate total live telemetry across all worker & critic calls
         all_worker_traces = (
             worker1.call_traces
@@ -733,6 +804,12 @@ def run_live_acceptance_suite(output_path: str | Path | None = DEFAULT_EVIDENCE_
             },
             "routing_strategy_comparison": routing_comparison,
             "adversarial_verifier_challenge": verifier_challenge,
+            "company_charter_and_cavo_portfolio": ranked_portfolio,
+            "owner_captains_bridge_surfaces": {
+                "mission_surface": owner_missions_a2ui,
+                "readiness_surface": owner_readiness_a2ui,
+            },
+            "product_readiness_matrix": list(PRODUCT_READINESS_MATRIX),
             "independent_critic_traces": [t.as_dict() for t in shared_critic.traces],
             "summary_metrics": {
                 "objectives_completed_and_verified": sum(

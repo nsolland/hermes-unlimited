@@ -19,6 +19,7 @@ provides_tools:
   - unlimited_memory_recall
   - unlimited_service_factory
   - unlimited_socratic_council
+  - unlimited_company_cycle
 
 requires_env:
   - name: HERMES_UNLIMITED_JUSTYOU_SESSION_TOKEN

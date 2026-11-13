@@ -50,7 +50,7 @@ SCHEMAS = (
         "name": "unlimited_a2ui_surface",
         "description": "Return a read-only A2UI 1.0 surface for the bound tenant; no action dispatch.",
         "parameters": {"type": "object", "properties": {
-            "view": {"type": "string", "enum": ["companies", "requests", "missions"]},
+            "view": {"type": "string", "enum": ["companies", "requests", "missions", "readiness"]},
             "company_id": {"type": "string"},
             "surface_id": {"type": "string"}},
             "required": ["view", "surface_id"], "additionalProperties": False},
@@ -126,6 +126,22 @@ SCHEMAS = (
             "question": {"type": "string"},
             "answers": {"type": "object"}},
             "required": ["question", "answers"],
+            "additionalProperties": False},
+    },
+    {
+        "name": "unlimited_company_cycle",
+        "description": "Run a complete Autonomous Company Operating System cycle evaluating the 6 governing business questions across a candidate objective portfolio under an owner CompanyCharter.",
+        "parameters": {"type": "object", "properties": {
+            "company_id": {"type": "string"},
+            "strategic_direction": {"type": "string"},
+            "allowed_domains": {"type": "array", "items": {"type": "string"}},
+            "forbidden_domains": {"type": "array", "items": {"type": "string"}},
+            "max_budget_per_mission_minor": {"type": "integer", "minimum": 0},
+            "owner_approval_threshold_minor": {"type": "integer", "minimum": 0},
+            "min_expected_roi_ratio": {"type": "number"},
+            "candidates": {"type": "array", "items": {"type": "object"}},
+            "auto_synthesize_service": {"type": "boolean"}},
+            "required": ["company_id", "strategic_direction", "candidates"],
             "additionalProperties": False},
     },
 )
@@ -237,11 +253,14 @@ def register_company_tools(ctx, scoped_secret, scoped_identity):
                             "task_id": response["task_id"], "executed": False}
 
                 if name == "unlimited_a2ui_surface":
-                    from .a2ui_adapter import company_surface, mission_surface, request_surface
+                    from .a2ui_adapter import company_surface, mission_surface, readiness_surface, request_surface
                     view = args["view"]
                     if view == "companies" and "company_id" not in args:
                         out = company_surface(store, provider, tenant, identity,
                                               surface_id=args["surface_id"])
+                    elif view == "readiness" and "company_id" not in args:
+                        out = readiness_surface(store, provider, tenant, identity,
+                                                surface_id=args["surface_id"])
                     elif view == "requests" and "company_id" in args:
                         out = request_surface(store, provider, tenant, args["company_id"],
                                               identity, surface_id=args["surface_id"])
@@ -494,6 +513,60 @@ def register_company_tools(ctx, scoped_secret, scoped_identity):
                     council = SocraticCouncil(members, chair)
                     record = asyncio.run(council.run(args["question"], args["answers"]))
                     out = {"ok": True, **record.as_dict()}
+                elif name == "unlimited_company_cycle":
+                    from .autonomy import BusinessObjective
+                    from .company_os import AutonomousCompanyOperatingSystem, CompanyCharter
+                    from .economics import EconomicPolicy
+
+                    company_id = args["company_id"]
+                    charter_kwargs = {
+                        "company_id": company_id,
+                        "display_name": company_id.title(),
+                        "mission_statement": args["strategic_direction"],
+                        "max_autonomous_budget_minor": int(args.get("max_budget_per_mission_minor", 10_000)),
+                        "owner_approval_threshold_minor": int(args.get("owner_approval_threshold_minor", 8_000)),
+                        "min_roi_hurdle_ratio": float(args.get("min_expected_roi_ratio", 0.25)),
+                    }
+                    if args.get("allowed_domains"):
+                        charter_kwargs["strategic_domains"] = tuple(args["allowed_domains"])
+                    if args.get("forbidden_domains"):
+                        charter_kwargs["forbidden_domains"] = tuple(args["forbidden_domains"])
+                    charter = CompanyCharter(**charter_kwargs)
+
+                    candidate_objs = []
+                    for raw_cand in args["candidates"]:
+                        if not isinstance(raw_cand, dict):
+                            raise ValueError("INVALID_CANDIDATE_OBJECTIVE")
+                        c_target = int(raw_cand["target_value_minor"])
+                        c_budget = int(raw_cand.get("budget_ceiling_minor", max(1000, c_target)))
+                        candidate_objs.append(
+                            BusinessObjective(
+                                objective_id=str(raw_cand["objective_id"]),
+                                company_id=company_id,
+                                title=str(raw_cand["title"]),
+                                description=str(raw_cand.get("description", raw_cand["title"])),
+                                target_value_minor=c_target,
+                                currency=str(raw_cand.get("currency", "NOK")),
+                                policy=EconomicPolicy(
+                                    currency=str(raw_cand.get("currency", "NOK")),
+                                    budget_ceiling_minor=c_budget,
+                                ),
+                            )
+                        )
+                    worker_fn = getattr(ctx, "mission_worker", None)
+                    os_kwargs = {"database": db_path, "verify_identity": verify}
+                    if callable(worker_fn):
+                        os_kwargs["worker"] = worker_fn
+                    company_os = AutonomousCompanyOperatingSystem(**os_kwargs)
+                    cycle_report = company_os.run_operating_cycle(
+                        provider_id=provider,
+                        tenant_id=tenant,
+                        identity=identity,
+                        charter=charter,
+                        candidate_objectives=candidate_objs,
+                        auto_productize_services=bool(args.get("auto_synthesize_service", True)),
+                    )
+                    out = {"ok": True, **cycle_report.as_dict()}
                 else:
                     out = {"companies": store.list_companies(provider, tenant, identity)}
                 return json.dumps(out, sort_keys=True)

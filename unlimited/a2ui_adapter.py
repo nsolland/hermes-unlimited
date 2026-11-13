@@ -171,6 +171,25 @@ def mission_surface(store, provider, tenant, company, identity, *, surface_id):
     }})
 
 
+def readiness_surface(store, provider, tenant, identity, *, surface_id):
+    """Read-only A2UI 1.0 Captain's Bridge surface displaying the 15-area Product Readiness Matrix."""
+    from .company_os import PRODUCT_READINESS_MATRIX
+
+    sid = _surface_id(surface_id)
+    # Enforce tenant & JustYou authorization via ProviderStore before exporting any UI surface
+    store.list_companies(provider, tenant, identity)
+    nodes = [{"id": "root", "component": "Column", "children": ["heading"]}]
+    nodes.append(_text("heading", "Captain's Bridge · 15-Area Product Readiness Matrix"))
+    for i, item in enumerate(PRODUCT_READINESS_MATRIX):
+        node_id = f"area_{i}"
+        nodes[0]["children"].append(node_id)
+        nodes.append(_text(node_id, f"{item['area']} · {item['status']}"))
+    return validate_envelope({"version": "1.0", "createSurface": {
+        "surfaceId": sid, "catalogId": BASIC_CATALOG, "sendDataModel": False,
+        "components": nodes, "dataModel": {},
+    }})
+
+
 def delete_surface(surface_id):
     return validate_envelope({"version": "1.0", "deleteSurface": {"surfaceId": _surface_id(surface_id)}})
 
