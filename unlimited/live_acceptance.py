@@ -201,8 +201,8 @@ def _challenge_verification_mechanism_live(critic: HermesLiveIndependentCritic) 
     seal_authentic = verifier.verify_receipt_authenticity(forged)
 
     # Case 2: Repetitive copy-pasted deliverables across keys
-    from .autonomy import ObjectiveDecomposer, StepAttemptReceipt
-    from .economics import CostBreakdown
+    from unlimited.autonomy import ObjectiveDecomposer, StepAttemptReceipt
+    from unlimited.economics import CostBreakdown
 
     dummy_steps = ObjectiveDecomposer.decompose(sample_obj)
     dummy_receipts = tuple(
