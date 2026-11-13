@@ -11,6 +11,9 @@ import copy
 import json
 import os
 import re
+import signal
+import threading
+from contextlib import contextmanager
 import sys
 import time
 from dataclasses import asdict, dataclass, field
@@ -19,6 +22,30 @@ from typing import Any, Mapping, Sequence
 
 from .autonomy import BusinessObjective, FORBIDDEN_PLACEHOLDERS, StepWorkerResult, WorkStep
 from .economics import LIVE_HERMES_MODEL_CATALOG, ModelProfile
+
+@contextmanager
+def _bounded_hermes_call(seconds: float):
+    """Hard wall-clock bound for in-process Hermes calls on Unix main thread."""
+    if threading.current_thread() is not threading.main_thread():
+        raise RuntimeError("HERMES_WALL_CLOCK_BOUND_REQUIRES_MAIN_THREAD")
+    if not hasattr(signal, "setitimer"):
+        raise RuntimeError("HERMES_WALL_CLOCK_BOUND_UNSUPPORTED")
+    def _timeout(_signum, _frame):
+        raise TimeoutError(f"HERMES_WALL_CLOCK_TIMEOUT:{seconds:g}s")
+    previous_handler = signal.getsignal(signal.SIGALRM)
+    previous_timer = signal.getitimer(signal.ITIMER_REAL)
+    started = time.monotonic()
+    signal.signal(signal.SIGALRM, _timeout)
+    signal.setitimer(signal.ITIMER_REAL, max(0.01, float(seconds)))
+    try:
+        yield
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, previous_handler)
+        if previous_timer[0] > 0:
+            remaining = max(0.001, previous_timer[0] - (time.monotonic() - started))
+            signal.setitimer(signal.ITIMER_REAL, remaining, previous_timer[1])
+
 
 DEFAULT_HERMES_AGENT_ROOT = Path("/home/njaal/.hermes/hermes-agent")
 
@@ -617,7 +644,8 @@ class HermesLiveWorkerAdapter:
             )
             agent._api_max_retries = 1
             agent._auto_recovery_cycles = 0
-            res = agent.run_conversation(user_message=user_prompt)
+            with _bounded_hermes_call(self.run_budget_seconds):
+                res = agent.run_conversation(user_message=user_prompt)
         except Exception as exc:
             elapsed = max(0.001, time.monotonic() - t0)
             err_msg = f"{type(exc).__name__}: {exc}"
@@ -955,7 +983,8 @@ class HermesLiveIndependentCritic:
                 )
                 agent._api_max_retries = 1
                 agent._auto_recovery_cycles = 0
-                res = agent.run_conversation(user_message=user_prompt)
+                with _bounded_hermes_call(25.0):
+                    res = agent.run_conversation(user_message=user_prompt)
             except Exception as exc:
                 last_error = f"{type(exc).__name__}:{exc}"
                 continue

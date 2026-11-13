@@ -1114,5 +1114,25 @@ class AutonomousCompanyTests(unittest.TestCase):
 
 
 
+    def test_18_live_wall_clock_budget_is_enforced(self) -> None:
+        from unlimited.hermes_live_worker import _bounded_hermes_call
+        import time
+        started = time.monotonic()
+        with self.assertRaisesRegex(TimeoutError, "HERMES_WALL_CLOCK_TIMEOUT"):
+            with _bounded_hermes_call(0.04):
+                time.sleep(0.5)
+        self.assertLess(time.monotonic() - started, 0.35)
+
+    def test_19_live_wall_clock_rejects_unbounded_worker_thread(self) -> None:
+        from unlimited.hermes_live_worker import _bounded_hermes_call
+        from concurrent.futures import ThreadPoolExecutor
+        def worker():
+            with _bounded_hermes_call(0.1):
+                return True
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            with self.assertRaisesRegex(RuntimeError, "HERMES_WALL_CLOCK_BOUND_REQUIRES_MAIN_THREAD"):
+                executor.submit(worker).result()
+
+
 if __name__ == "__main__":
     unittest.main()
