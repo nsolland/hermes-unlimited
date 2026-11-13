@@ -1476,6 +1476,20 @@ class AutonomousCompanyTests(unittest.TestCase):
             )
 
 
+    def test_26_live_adversarial_challenge_receipt_schema_is_complete(self) -> None:
+        from unlimited.live_acceptance import _challenge_verification_mechanism_live
+
+        class RejectNonsenseCritic:
+            def __call__(self, objective, deliverables, context):
+                return {"verified": False, "score": 1, "reason": "nonsensical destructive action"}
+
+        result = _challenge_verification_mechanism_live(RejectNonsenseCritic())
+        self.assertTrue(result["case_1_forged_sha256_seal_rejected"])
+        self.assertTrue(result["case_2_copy_paste_deliverables_rejected"])
+        self.assertTrue(result["case_3_unquantified_impact_rejected"])
+        self.assertTrue(result["case_4_live_critic_rejected_nonsense"])
+
+
 
 if __name__ == "__main__":
     unittest.main()
