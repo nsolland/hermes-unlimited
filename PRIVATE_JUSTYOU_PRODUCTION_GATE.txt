@@ -1,0 +1,20 @@
+JustYou inbound - private DEV production gate
+
+Status: NOT PRODUCTION APPROVED. Keep out of public repositories until all requirements have independently verified evidence.
+
+Implemented:
+- HMACWebhookIngress: HMAC-SHA256 over exact request bytes, timestamp tolerance, >=32-byte secret, configured channel+endpoint binding. Rejects expired signatures, malformed bodies, unknown JustYou sender/recipient and conflicting message IDs.
+- DurableInboundInbox: SQLite WAL, FULL synchronous, unique scoped message key, pending state persisted before callback, delivery acknowledgement, restart recovery and conflict detection. Callback receives stable delivery key.
+- Existing HermesKanban.enqueue uses idempotency keys. DEV live acceptance checks signed JustYou session, authenticated webhook, persisted delivery, restart deduplication and real Hermes task observation.
+
+Guarantee boundary: at-least-once delivery, NOT exactly-once. A crash after external effect and before inbox COMMIT can repeat callback. Real sinks MUST deduplicate by delivery key and verify effect identity. SQLite requires documented backup/restore and filesystem durability policy.
+
+Mandatory before production approval:
+1. Actual provider adapter with verified webhook signatures/credentials and endpoint mapping, including key rotation/revocation.
+2. Durable store backup/restore, retention, permissions, concurrency, and an idempotent Hermes sink.
+3. Crash-injection after real external task creation but before acknowledgement; restart; independently prove only one task exists.
+4. End-to-end delivery from real external provider into live Hermes with signed JustYou identity and independent effect observation.
+5. Tenant isolation, monitoring, rate limits, request-size enforcement, TLS termination, failure and replay tests.
+6. Record evidence and explicit production approval before public merge, tag or release.
+
+Never publish private infrastructure, account or billing information in public repo metadata.

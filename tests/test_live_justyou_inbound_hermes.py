@@ -21,6 +21,10 @@ from unlimited.hermes_kanban import HermesKanban, board_for
 from unlimited.justyou import JustYouVerifier
 from unlimited.justyou_host import LoopbackSessionStore, load_resolver
 from unlimited.justyou_inbound import JustYouInboundBridge
+from unlimited.justyou_durable_inbox import DurableInboundInbox
+from unlimited.justyou_webhook import HMACWebhookIngress
+import hashlib
+import hmac
 
 
 @unittest.skipUnless(os.environ.get("HERMES_UNLIMITED_LIVE_KANBAN") == "1",
@@ -163,8 +167,54 @@ class LiveInboundToHermesAcceptance(unittest.TestCase):
                                             ValueError)):
                         bridge.receive(**invalid)
                 self.assertEqual(len(queued), 1)
+                # Authenticated webhook -> durable SQLite -> native Hermes.
+                webhook_tasks = []
+                def deliver_durable(delivery):
+                    message = delivery.message
+                    if message.recipient != identity_evidence["identity"]:
+                        raise PermissionError("recipient not bound to session")
+                    task = kanban.enqueue(
+                        tenant=tenant, assignee=profile,
+                        task_id="inbound-" + delivery.key[:32],
+                        title="Durable verified inbound: " + message.message_id,
+                        body=message.text, identity_evidence=identity_evidence)
+                    webhook_tasks.append(task)
+                inbox_path = str(state / "inbound.sqlite")
+                inbox = DurableInboundInbox(inbox_path, deliver_durable)
+                secret = b"test-isolated-webhook-secret-32bytes-long"
+                now_ts = "1700000000"
+                payload = json.dumps({
+                    "endpoint": "provider:test-supplier",
+                    "message_id": "live-webhook-1", "recipient": recipient,
+                    "text": "Durable live inbound"}).encode()
+                signature = hmac.new(secret, now_ts.encode() + b"." + payload,
+                                     hashlib.sha256).hexdigest()
+                webhook = HMACWebhookIngress(
+                    secret=secret, channel="dev-provider",
+                    endpoint="provider:test-supplier", frontdoor=frontdoor,
+                    inbox=inbox, clock=lambda: 1700000000)
+                first = webhook.receive(
+                    body=payload, timestamp=now_ts, signature_hex=signature)
+                self.assertEqual(inbox.status(first.key), "delivered")
+                inbox.close()
+                restarted = DurableInboundInbox(inbox_path, deliver_durable)
+                webhook_after_restart = HMACWebhookIngress(
+                    secret=secret, channel="dev-provider",
+                    endpoint="provider:test-supplier", frontdoor=frontdoor,
+                    inbox=restarted, clock=lambda: 1700000000)
+                self.assertEqual(first.key, webhook_after_restart.receive(
+                    body=payload, timestamp=now_ts,
+                    signature_hex=signature).key)
+                self.assertEqual(len(webhook_tasks), 1)
+                self.assertEqual(restarted.recover(), 0)
+                observed_webhook = kanban.result(
+                    tenant=tenant, assignee=profile,
+                    task_id=webhook_tasks[0]["task_id"])
+                self.assertTrue(observed_webhook["found"], observed_webhook)
+                restarted.close()
                 print(json.dumps({
                     "live_inbound": "PASS", "signed_session": "PASS",
+                    "durable_webhook_to_real_hermes": "PASS",
                     "real_hermes_kanban": "PASS", "duplicate": "BLOCKED",
                     "invalid_origins": "BLOCKED",
                     "external_provider": "NOT_TESTED",
