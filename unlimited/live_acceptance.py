@@ -369,6 +369,7 @@ def run_live_acceptance_suite(output_path: str | Path | None = DEFAULT_EVIDENCE_
                     "status": report1.status,
                     "failures": report1.failures_detected,
                     "verification": report1.verification.as_dict(),
+                    "critic_failure": getattr(shared_critic, "last_failure", None),
                     "steps": [{"step": r.step_id, "status": r.status, "err": r.error_reason} for r in report1.step_receipts],
                 }, default=str)
             )

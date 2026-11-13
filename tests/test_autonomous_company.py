@@ -830,5 +830,64 @@ class AutonomousCompanyTests(unittest.TestCase):
         self.assertEqual(report.autonomous_recoveries, 1)
 
 
+    def test_15_live_critic_resolves_model_when_runtime_omits_model_key(self) -> None:
+        """Hermes resolver may omit model; critic must use the requested model safely."""
+        from unlimited import hermes_live_worker as live
+
+        observed = {}
+        class FakeAgent:
+            def __init__(self, **kwargs):
+                observed.update(kwargs)
+            def run_conversation(self, *, user_message):
+                return {
+                    "completed": True,
+                    "final_response": json.dumps({
+                        "verified": True, "score": 91,
+                        "reason": "Specific deliverables validated",
+                        "findings": ["Scope and quantitative details reviewed"],
+                    }),
+                    "input_tokens": 40, "output_tokens": 25,
+                    "estimated_cost_usd": 0.0004,
+                }
+
+        provider = types.ModuleType("hermes_cli.runtime_provider")
+        provider.resolve_runtime_with_fallback = lambda *a, **kw: ({
+            "provider": "alibaba",
+            "api_key": "test-key",
+            "base_url": "https://example.invalid",
+            "api_mode": "chat_completions",
+        }, None)
+        config = types.ModuleType("hermes_cli.config")
+        config.load_config = lambda: {}
+        session = types.ModuleType("gateway.session_context")
+        session.declare_stateless_channel = lambda: None
+        runtime_agent = types.ModuleType("run_agent")
+        runtime_agent.AIAgent = FakeAgent
+        fake_modules = {
+            "hermes_cli.runtime_provider": provider,
+            "hermes_cli.config": config,
+            "gateway.session_context": session,
+            "run_agent": runtime_agent,
+        }
+        with patch.object(live, "ensure_hermes_runtime_loaded", return_value=ROOT), \
+             patch.dict(sys.modules, fake_modules):
+            critic = live.HermesLiveIndependentCritic()
+            critic.CRITIC_PREFERENCE_ORDER = (("alibaba", "qwen3.8-max"),)
+            verdict = critic(
+                self._objective(),
+                {"executive_summary": "Valo Corp security and revenue controls reviewed",
+                 "action_plan": "Configure JustYou checks on the 3 customer workflows",
+                 "quantified_impact": "Save 1500 NOK per month",
+                 "risk_mitigations": "Preserve tenant boundaries"},
+                {"step_receipts": [
+                    SimpleNamespace(step_id="step-3-build", status="completed",
+                                    cost=SimpleNamespace(provider_id="nous")),
+                ]},
+            )
+        self.assertTrue(verdict["verified"])
+        self.assertEqual(observed["model"], "qwen3.8-max")
+        self.assertEqual(verdict["critic_provider_id"], "alibaba")
+
+
 if __name__ == "__main__":
     unittest.main()

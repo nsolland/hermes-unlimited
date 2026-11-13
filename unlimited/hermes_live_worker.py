@@ -603,7 +603,6 @@ class HermesLiveWorkerAdapter:
                 base_url=base_url,
                 provider=resolved_provider,
                 api_mode=api_mode,
-                command_timeout=20,
                 max_iterations=self.max_iterations if step_toolsets else 1,
                 quiet_mode=True,
                 ephemeral_system_prompt=system_prompt,
@@ -611,13 +610,15 @@ class HermesLiveWorkerAdapter:
                 disabled_toolsets=None if step_toolsets else ["all"],
                 skip_context_files=True,
                 skip_memory=True,
-                Pre_Execution_Validation=False,
                 session_db=None,
                 platform="cli",
-                Fallback_Model=None,
                 run_budget_seconds=self.run_budget_seconds,
                 tool_complete_callback=_on_tool_complete,
             )
+            if os.environ.get("HERMES_UNLIMITED_LIVE_TEST_BOUNDED") == "1":
+                # Bound live acceptance retries without changing normal Hermes policy.
+                agent._api_max_retries = 1
+                agent._auto_recovery_cycles = 0
             res = agent.run_conversation(user_message=user_prompt)
         except Exception as exc:
             elapsed = max(0.001, time.monotonic() - t0)
@@ -869,6 +870,7 @@ class HermesLiveIndependentCritic:
     def __init__(self, *, hermes_root: str | Path | None = None) -> None:
         self.hermes_root = ensure_hermes_runtime_loaded(hermes_root)
         self.traces: list[CriticCallTrace] = []
+        self.last_failure: str | None = None
 
     def _candidate_critics(self, builder_provider: str) -> list[tuple[str, str]]:
         cross = [pair for pair in self.CRITIC_PREFERENCE_ORDER if pair[0] != builder_provider]
@@ -939,24 +941,24 @@ class HermesLiveIndependentCritic:
                     target_model=critic_model,
                 )
                 agent = AIAgent(
-                    model=rt["model"],
+                    model=str(rt.get("model") or critic_model),
                     api_key=rt.get("api_key"),
                     base_url=rt.get("base_url"),
                     provider=rt.get("provider"),
                     api_mode=rt.get("api_mode"),
-                    command_timeout=20,
                     max_iterations=1,
                     quiet_mode=True,
                     ephemeral_system_prompt=system_prompt,
                     disabled_toolsets=["all"],
                     skip_context_files=True,
                     skip_memory=True,
-                    Pre_Execution_Validation=False,
                     session_db=None,
                     platform="cli",
-                    Fallback_Model=None,
                     run_budget_seconds=25.0,
                 )
+                if os.environ.get("HERMES_UNLIMITED_LIVE_TEST_BOUNDED") == "1":
+                    agent._api_max_retries = 1
+                    agent._auto_recovery_cycles = 0
                 res = agent.run_conversation(user_message=user_prompt)
             except Exception as exc:
                 last_error = f"{type(exc).__name__}:{exc}"
@@ -1000,4 +1002,5 @@ class HermesLiveIndependentCritic:
             self.traces.append(trace)
             return trace.as_dict()
 
+        self.last_failure = last_error[:240]
         raise RuntimeError(f"ALL_CROSS_PROVIDER_CRITICS_UNAVAILABLE:{last_error}")
