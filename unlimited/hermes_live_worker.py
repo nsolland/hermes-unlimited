@@ -103,8 +103,34 @@ def ensure_hermes_runtime_loaded(hermes_root: str | Path | None = None) -> Path:
     if root_str not in sys.path:
         sys.path.insert(0, root_str)
 
+    original_import_paths = tuple(sys.path)
     import hermes_bootstrap  # noqa: F401
 
+    # Hermes bootstrap may activate an install managed by a different Python
+    # interpreter. Its foreign site-packages must not remain on this process's
+    # import path (e.g. CPython 3.14 extension wheels in a Python 3.12 host).
+    # Keep matching-interpreter and non-site-package paths untouched.
+    host_python = f"python{sys.version_info.major}.{sys.version_info.minor}"
+    sys.path[:] = [
+        entry for entry in sys.path
+        if not (
+            "site-packages" in Path(entry).parts
+            and any(
+                re.fullmatch(r"python\d+\.\d+", part) and part != host_python
+                for part in Path(entry).parts
+            )
+        )
+    ]
+    # Restore pre-existing compatible environment packages after bootstrap's
+    # import-path hardening, without restoring a cwd that could shadow Hermes.
+    for entry in original_import_paths:
+        if entry and entry not in sys.path and (
+            "site-packages" in Path(entry).parts or "dist-packages" in Path(entry).parts
+        ) and not any(
+            re.fullmatch(r"python\d+\.\d+", part) and part != host_python
+            for part in Path(entry).parts
+        ):
+            sys.path.append(entry)
     return root
 
 
