@@ -366,6 +366,31 @@ class AuthorizedCustomerDeliveryChannel:
             )
         return receipt
 
+    def dispatch_with_customer_connection(
+        self, *, provider_id: str, tenant_id: str, company_id: str,
+        identity: str, delivery_id: str, recipient: str, connection_id: str,
+        connection_registry, secret_resolver,
+        approve_effect: Callable[[str, str, str], bool],
+        authorize_external_effect: bool = False, smtp_factory=None,
+    ):
+        """Resolve tenant-owned SMTP credentials only after scoped approval."""
+        if self.verify_identity(provider_id, tenant_id, identity) is not True:
+            raise UnverifiedIdentity("JUSTYOU_IDENTITY_NOT_VERIFIED")
+        if authorize_external_effect is not True or approve_effect(tenant_id, identity, delivery_id) is not True:
+            raise PermissionError("EXTERNAL_CUSTOMER_EFFECT_NOT_AUTHORIZED")
+        connection = connection_registry.get(
+            tenant_id=tenant_id, identity=identity, connection_id=connection_id)
+        if connection.provider != "smtp":
+            raise PermissionError("EMAIL_REQUIRES_SMTP_CUSTOMER_CONNECTION")
+        adapter = connection_registry.resolve_adapter(
+            tenant_id=tenant_id, identity=identity, connection_id=connection_id,
+            secret_resolver=secret_resolver, smtp_factory=smtp_factory)
+        return self.dispatch_queued_email(
+            provider_id=provider_id, tenant_id=tenant_id, company_id=company_id,
+            identity=identity, delivery_id=delivery_id, recipient=recipient,
+            email_adapter=adapter, approve_effect=approve_effect,
+            authorize_external_effect=authorize_external_effect)
+
     def dispatch_queued_email(
         self, *, provider_id: str, tenant_id: str, company_id: str,
         identity: str, delivery_id: str, recipient: str, email_adapter,
