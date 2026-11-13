@@ -11,7 +11,7 @@ SCHEMAS = (
         "name": "unlimited_connection_manage",
         "description": "Manage tenant-owned provider connections in native Hermes UX. Never accepts credentials or secrets; only host-vault references.",
         "parameters": {"type": "object", "properties": {
-            "operation": {"type": "string", "enum": ["connect", "status", "disconnect"]},
+            "operation": {"type": "string", "enum": ["connect", "status", "disconnect", "onboard"]},
             "connection_id": {"type": "string"},
             "provider": {"type": "string", "enum": ["smtp", "stripe"]},
             "secret_ref": {"type": "string"},
@@ -273,13 +273,30 @@ def register_company_tools(ctx, scoped_secret, scoped_identity):
                         registry, lambda _session: (tenant, identity))
                     op = args["operation"]
                     cid = args["connection_id"]
-                    if op in ("connect", "disconnect"):
+                    if op in ("connect", "disconnect", "onboard"):
                         # The Hermes host must authorize each mutation separately;
                         # tool args alone never grant effect authority.
                         approve = getattr(ctx, "approve_customer_connection", None)
                         if not callable(approve) or approve(tenant, identity, op, cid) is not True:
                             raise PermissionError("HERMES_CONNECTION_APPROVAL_REQUIRED")
-                    if op == "connect":
+                    if op == "onboard":
+                        # Credential entry and secret storage are exclusively owned by
+                        # the trusted Hermes host, never tool args or model context.
+                        onboard = getattr(ctx, "onboard_customer_connection", None)
+                        if not callable(onboard):
+                            raise PermissionError("HERMES_SECURE_ONBOARDING_UNAVAILABLE")
+                        if set(args) - {"operation", "connection_id", "provider", "config"}:
+                            raise ValueError("ONBOARDING_MUST_NOT_CONTAIN_SECRET_REFERENCE")
+                        result = onboard(tenant, identity, cid, args.get("provider"), args.get("config", {}))
+                        if not isinstance(result, dict) or result.get("approved") is not True:
+                            raise PermissionError("HERMES_ONBOARDING_NOT_APPROVED")
+                        ref = result.get("secret_ref", "")
+                        if not isinstance(ref, str) or not ref.startswith(f"vault://{tenant}/"):
+                            raise PermissionError("HERMES_VAULT_REFERENCE_INVALID")
+                        out = controller.connect(None, {
+                            "connection_id": cid, "provider": args.get("provider"),
+                            "config": args.get("config", {}), "secret_ref": ref})
+                    elif op == "connect":
                         out = controller.connect(None, args)
                     elif op == "status":
                         out = controller.get(None, cid)

@@ -100,6 +100,21 @@ class ToolIntegrationTests(unittest.TestCase):
         self.assertFalse(disconnected["enabled"])
         self.assertFalse(self.call(tool, {"operation": "status", "connection_id": "mail"})["ok"])
 
+    def test_native_hermes_secure_onboarding_never_receives_credentials(self):
+        tool = "unlimited_connection_manage"
+        args = {"operation": "onboard", "connection_id": "billing", "provider": "stripe", "config": {}}
+        self.ctx.approve_customer_connection = lambda *scope: True
+        self.assertFalse(self.call(tool, args)["ok"])
+        seen = []
+        def onboard(*scope):
+            seen.append(scope)
+            return {"approved": True, "secret_ref": "vault://tenant-a/billing"}
+        self.ctx.onboard_customer_connection = onboard
+        self.assertEqual(self.call(tool, args)["provider"], "stripe")
+        self.assertEqual(seen, [("tenant-a", "@owner", "billing", "stripe", {})])
+        self.assertEqual(self.call(tool, {**args, "secret_ref": "vault://tenant-a/billing"})["ok"], False)
+        self.assertEqual(self.call(tool, {"operation":"status", "connection_id":"billing"})["enabled"], True)
+
     def test_manifest_declares_all_registered_tools(self):
         manifest = (ROOT / "plugin.yaml").read_text(encoding="utf-8")
         tools_section = manifest.split("provides_tools:", 1)[1].split("\nrequires_env:", 1)[0]
