@@ -1490,6 +1490,17 @@ class AutonomousCompanyTests(unittest.TestCase):
         self.assertTrue(result["case_4_live_critic_rejected_nonsense"])
 
 
+    def test_27_no_self_provider_critic_fallback_when_independent_provider_unavailable(self) -> None:
+        from unlimited.hermes_live_worker import HermesLiveIndependentCritic, ProviderCircuitBreaker
+
+        blocked = ProviderCircuitBreaker(excluded_providers=("gemini", "alibaba"))
+        critic = HermesLiveIndependentCritic(circuit_breaker=blocked)
+        self.assertEqual(critic._candidate_critics("nous"), [])
+        candidates = critic._candidate_critics("alibaba")
+        self.assertTrue(candidates)
+        self.assertTrue(all(provider == "nous" for provider, _model in candidates))
+
+
 
 if __name__ == "__main__":
     unittest.main()

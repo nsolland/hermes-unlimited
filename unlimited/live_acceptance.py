@@ -344,7 +344,10 @@ def run_live_acceptance_suite(output_path: str | Path | None = DEFAULT_EVIDENCE_
         justyou_results = _verify_justyou_boundaries(store, memory, factory)
 
         shared_breaker = ProviderCircuitBreaker(excluded_providers=("gemini",))
-        shared_critic = HermesLiveIndependentCritic(circuit_breaker=shared_breaker)
+        # Audit credentials and health must be independent of worker runtime
+        # timeouts. Worker failures cannot force a self-provider audit fallback.
+        critic_breaker = ProviderCircuitBreaker(excluded_providers=("gemini",))
+        shared_critic = HermesLiveIndependentCritic(circuit_breaker=critic_breaker)
         verifier_with_critic = IndependentOutcomeVerifier(independent_critic=shared_critic)
 
         # =====================================================================
@@ -712,10 +715,37 @@ def run_live_acceptance_suite(output_path: str | Path | None = DEFAULT_EVIDENCE_
                 "verifier_seal": rep_strat.verification.verifier_seal,
             }
 
+        # A successful run requires independent cross-provider verification on
+        # every accepted core objective and routing strategy, not just a green
+        # verifier boolean issued by the same provider that built the artifact.
+        self_audits = [
+            t.as_dict() for t in shared_critic.traces
+            if t.builder_provider_id not in ("", "unknown")
+            and t.builder_provider_id.lower() == t.critic_provider_id.lower()
+        ]
+        if self_audits:
+            raise RuntimeError("LIVE_SELF_PROVIDER_VERIFICATION_REJECTED:" + json.dumps(self_audits))
+        unverified_routes = [name for name, rep in routing_comparison.items() if not rep["independently_verified"]]
+        if unverified_routes:
+            raise RuntimeError("LIVE_ROUTING_NOT_INDEPENDENTLY_VERIFIED:" + ",".join(unverified_routes))
+
         # =====================================================================
         # REQUIREMENT 7: Live Challenge of Verification Mechanism
         # =====================================================================
         verifier_challenge = _challenge_verification_mechanism_live(shared_critic)
+        challenge_cases = (
+            "case_1_forged_sha256_seal_rejected",
+            "case_2_copy_paste_deliverables_rejected",
+            "case_3_unquantified_impact_rejected",
+            "case_4_live_critic_rejected_nonsense",
+        )
+        if not all(verifier_challenge.get(key) is True for key in challenge_cases):
+            raise RuntimeError("LIVE_ADVERSARIAL_VERIFIER_CHALLENGE_FAILED")
+        if not any(
+            t.objective_id == "obj-verifier-challenge" and not t.verified
+            for t in shared_critic.traces
+        ):
+            raise RuntimeError("LIVE_ADVERSARIAL_CRITIC_NOT_OBSERVED")
 
         # =====================================================================
         # REQUIREMENT 8: 6-Question Company Charter & CAVO Opportunity Allocation

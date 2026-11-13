@@ -1060,10 +1060,11 @@ class HermesLiveIndependentCritic:
             for pair in self.CRITIC_PREFERENCE_ORDER
             if not self.circuit_breaker.is_tripped(pair[0])
         ]
-        if not available:
-            available = list(self.CRITIC_PREFERENCE_ORDER)
-        cross = [pair for pair in available if pair[0] != builder_provider]
-        return cross or available
+        # Never self-certify: a blocked cross-provider is a failed verification,
+        # not permission to fall back to the worker's own provider.
+        if builder_provider:
+            return [pair for pair in available if pair[0] != builder_provider]
+        return available
 
     def __call__(
         self,
@@ -1129,6 +1130,10 @@ class HermesLiveIndependentCritic:
                     requested=critic_provider,
                     target_model=critic_model,
                 )
+                actual_critic_provider = str(rt.get("provider") or critic_provider).lower()
+                if builder_provider and actual_critic_provider == builder_provider.lower():
+                    last_error = "CROSS_PROVIDER_VERIFICATION_REQUIRED:resolved_to_builder_provider"
+                    continue
                 agent = AIAgent(
                     model=str(rt.get("model") or critic_model),
                     api_key=rt.get("api_key"),
@@ -1180,8 +1185,8 @@ class HermesLiveIndependentCritic:
             trace = CriticCallTrace(
                 objective_id=objective.objective_id,
                 builder_provider_id=builder_provider or "unknown",
-                critic_provider_id=str(rt.get("provider", critic_provider)),
-                critic_model_id=str(rt.get("model", critic_model)),
+                critic_provider_id=str(rt.get("provider") or critic_provider),
+                critic_model_id=str(rt.get("model") or critic_model),
                 verified=verified,
                 reason=reason,
                 score=score,
