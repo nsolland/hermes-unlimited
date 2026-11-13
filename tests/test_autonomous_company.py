@@ -650,6 +650,184 @@ class AutonomousCompanyTests(unittest.TestCase):
                 provider_store=self.store,
             )
 
+    def test_13_adversarial_verifier_forgery_distinctness_quantification_and_durable_ledger(self) -> None:
+        from dataclasses import replace
+        from unlimited.autonomy import OutcomeVerificationReceipt
+
+        # 1. Forged SHA-256 receipt without valid HMAC verifier_seal is rejected by Memory & Service Factory
+        forged_receipt = OutcomeVerificationReceipt(
+            objective_id="obj-forged",
+            independently_verified=True,
+            agent_claimed_complete=True,
+            checks_passed=("all_dag_steps_completed",),
+            checks_failed=(),
+            deliverable_digest="a" * 64,
+            evidence_digest="b" * 64,
+            verifier_seal="c" * 64,
+        )
+        self.assertFalse(IndependentOutcomeVerifier().verify_receipt_authenticity(forged_receipt))
+        with self.assertRaisesRegex(ValueError, "INDEPENDENT_VERIFICATION_RECEIPT_REQUIRED"):
+            self.memory.record_verified_outcome(
+                provider="owner",
+                tenant="tenant-a",
+                company="valocorp",
+                identity="@captain",
+                task_kind="implementation",
+                lesson="Attempted memory poisoning with forged SHA-256 receipt.",
+                verification=forged_receipt,
+            )
+
+        # 2. Tampered deliverables after verification are rejected by ServiceFactory
+        engine = AutonomousMissionEngine(verify_identity=self.verify, ledger_db_path=self.db_path)
+        valid_report = engine.execute_objective(
+            provider_id="owner",
+            tenant_id="tenant-a",
+            identity="@captain",
+            objective=self._objective(objective_id="obj-tamper-check"),
+        )
+        self.assertTrue(valid_report.independently_verified)
+        tampered_report = replace(
+            valid_report,
+            deliverables={**valid_report.deliverables, "executive_summary": "Tampered post-verification text"},
+        )
+        with self.assertRaisesRegex(ValueError, "INDEPENDENT_VERIFICATION_REQUIRED"):
+            self.factory.synthesize_from_mission(
+                provider="owner",
+                tenant="tenant-a",
+                company="valocorp",
+                identity="@captain",
+                service_id="tampered-svc",
+                title="Tampered Service",
+                report=tampered_report,
+            )
+
+        # 3. Durable SQLite idempotency ledger prevents re-execution across separate engine instances
+        second_engine_instance = AutonomousMissionEngine(
+            verify_identity=self.verify,
+            ledger_db_path=self.db_path,
+        )
+        second_run = second_engine_instance.execute_objective(
+            provider_id="owner",
+            tenant_id="tenant-a",
+            identity="@captain",
+            objective=self._objective(objective_id="obj-tamper-check"),
+        )
+        self.assertEqual(second_run.status, "VERIFIED_COMPLETE")
+        self.assertEqual(second_run.total_model_calls, 0)
+        self.assertEqual(second_run.duplicate_actions_prevented, 4)
+
+        # 4. Copy-pasted repetitive deliverables and unquantified impact are rejected by IndependentOutcomeVerifier
+        verifier = IndependentOutcomeVerifier()
+        identical_text = (
+            "Valo Corp revenue operations audit completed with 15% efficiency gain and 4000 NOK impact."
+        )
+        dup_ver = verifier.verify(
+            self._objective(objective_id="obj-dup-deliv"),
+            {
+                "executive_summary": identical_text,
+                "action_plan": identical_text,
+                "quantified_impact": " saves 4000 NOK per month (15%)",
+                "risk_mitigations": "Enforce JustYou tenant boundaries for Valo Corp.",
+            },
+            valid_report.step_receipts,
+            tenant_id="tenant-a",
+            identity="@captain",
+        )
+        self.assertFalse(dup_ver.independently_verified)
+        self.assertTrue(
+            any(c.startswith("duplicate_or_repetitive_deliverables:") for c in dup_ver.checks_failed)
+        )
+
+        # 5. Missing quantitative metrics in quantified_impact is rejected
+        unquant_ver = verifier.verify(
+            self._objective(objective_id="obj-unquant"),
+            {
+                "executive_summary": "Valo Corp revenue audit executive summary covering billing pipelines.",
+                "action_plan": "Deploy automated reconciliation hooks across Valo Corp billing stages.",
+                "quantified_impact": "Substantial financial improvement and much better operational efficiency.",
+                "risk_mitigations": "Enforce strict rollback gates and JustYou identity checks.",
+            },
+            valid_report.step_receipts,
+            tenant_id="tenant-a",
+            identity="@captain",
+        )
+        self.assertFalse(unquant_ver.independently_verified)
+        self.assertIn("missing_quantitative_metrics:quantified_impact", unquant_ver.checks_failed)
+
+        # 6. External independent_critic rejection overrides self-reported step-4-critique pass
+        rejecting_verifier = IndependentOutcomeVerifier(
+            independent_critic=lambda _obj, _deliv, _ctx: {
+                "verified": False,
+                "reason": "cross_model_critic_found_flaw",
+            }
+        )
+        critic_ver = rejecting_verifier.verify(
+            self._objective(objective_id="obj-critic-reject"),
+            valid_report.deliverables,
+            valid_report.step_receipts,
+            tenant_id="tenant-a",
+            identity="@captain",
+        )
+        self.assertFalse(critic_ver.independently_verified)
+        self.assertIn("independent_critic_rejected:cross_model_critic_found_flaw", critic_ver.checks_failed)
+
+    def test_14_live_worker_adapter_normalization_and_step_level_quality_gates(self) -> None:
+        from unlimited.economics import LIVE_HERMES_MODEL_CATALOG
+        from unlimited.hermes_live_worker import (
+            _flatten_to_prose,
+            _sanitize_incidental_placeholder_words,
+            normalize_catalog,
+            resolve_provider_and_model,
+        )
+
+        # 1. normalize_catalog supports both tuple[ModelProfile, ...] and Mapping[str, ModelProfile]
+        cat_from_tuple = normalize_catalog(LIVE_HERMES_MODEL_CATALOG)
+        cat_from_dict = normalize_catalog(cat_from_tuple)
+        self.assertEqual(set(cat_from_tuple.keys()), set(cat_from_dict.keys()))
+        prov, mod = resolve_provider_and_model("alibaba/qwen3.8-max", LIVE_HERMES_MODEL_CATALOG)
+        self.assertEqual((prov, mod), ("alibaba", "qwen3.8-max"))
+
+        # 2. _flatten_to_prose and _sanitize_incidental_placeholder_words handle nested lists/dicts
+        nested = ["Phase 1: Replace placeholder pricing with 1500 NOK floor", {"sla_ms": 250}]
+        flat = _sanitize_incidental_placeholder_words(_flatten_to_prose(nested))
+        self.assertIn("static default pricing", flat)
+        self.assertNotIn("placeholder", flat.lower())
+
+        # 3. Step-level _validate_step_output catches short or unquantified deliverables during build retries
+        calls = []
+
+        def unquantified_first_build_worker(step, model_id, attempt, ctx, hints):
+            calls.append((step.step_id, attempt, hints))
+            if step.step_id == "step-3-build" and attempt == 1:
+                return StepWorkerResult(
+                    status="ok",
+                    output={
+                        "executive_summary": "Valo Corp revenue operations audit summary with detailed scope and findings.",
+                        "action_plan": "Deploy automated reconciliation across all Valo Corp billing pipelines.",
+                        "quantified_impact": "Substantial financial improvement without any digits or units.",
+                        "risk_mitigations": "Enforce strict JustYou identity and tenant isolation checks.",
+                    },
+                    input_tokens=800,
+                    output_tokens=200,
+                    latency_sec=2.0,
+                )
+            return default_deterministic_worker(step, model_id, attempt, ctx, hints)
+
+        engine = AutonomousMissionEngine(
+            verify_identity=self.verify,
+            worker=unquantified_first_build_worker,
+        )
+        report = engine.execute_objective(
+            provider_id="owner",
+            tenant_id="tenant-a",
+            identity="@captain",
+            objective=self._objective(objective_id="obj-unquant-retry"),
+        )
+        self.assertEqual(report.status, "VERIFIED_COMPLETE")
+        self.assertTrue(report.independently_verified)
+        self.assertEqual(report.failures_detected, 1)
+        self.assertEqual(report.autonomous_recoveries, 1)
+
 
 if __name__ == "__main__":
     unittest.main()

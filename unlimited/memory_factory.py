@@ -16,7 +16,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Callable, Literal
 
-from .autonomy import MissionExecutionReport, OutcomeVerificationReceipt
+from .autonomy import IndependentOutcomeVerifier, MissionExecutionReport, OutcomeVerificationReceipt
 from .runtime import IDENT, UnverifiedIdentity
 
 MemoryClassification = Literal["RECORDED_UNVERIFIED", "VERIFIED_OUTCOME"]
@@ -202,6 +202,11 @@ class CompanyMemoryStore:
             not isinstance(verification, OutcomeVerificationReceipt)
             or verification.independently_verified is not True
             or not HEX64.fullmatch(verification.evidence_digest)
+            or not IndependentOutcomeVerifier().verify_receipt_authenticity(
+                verification,
+                expected_tenant_id=tenant,
+                expected_company_id=company,
+            )
         ):
             raise ValueError("INDEPENDENT_VERIFICATION_RECEIPT_REQUIRED")
         cleaned = " ".join(str(lesson).split()).strip() if isinstance(lesson, str) else ""
@@ -384,6 +389,13 @@ class ServiceFactory:
             or report.independently_verified is not True
             or report.verification.independently_verified is not True
             or not HEX64.fullmatch(report.verification.evidence_digest)
+            or not IndependentOutcomeVerifier().verify_receipt_authenticity(
+                report.verification,
+                deliverables=report.deliverables,
+                expected_tenant_id=tenant,
+                expected_company_id=company,
+                expected_objective_id=report.objective_id,
+            )
         ):
             raise ValueError("INDEPENDENT_VERIFICATION_REQUIRED")
         if report.net_economic_value_minor <= 0 or report.verified_value_minor <= 0:

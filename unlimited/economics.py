@@ -35,6 +35,8 @@ class ModelProfile:
     compute_cost_per_sec_minor: float
     mean_latency_sec: float
     base_Capabilities: Mapping[str, float] = field(default_factory=dict)
+    provider_id: str = "google"
+    runtime_model_id: str = ""
 
     def __post_init__(self) -> None:
         if not self.model_id or not isinstance(self.model_id, str):
@@ -73,6 +75,8 @@ DEFAULT_MODEL_CATALOG: tuple[ModelProfile, ...] = (
             "synthesis": 0.68,
             "default": 0.78,
         },
+        provider_id="nous",
+        runtime_model_id="upstage/solar-mini4:free",
     ),
     ModelProfile(
         model_id="gemini-4-argon",
@@ -92,6 +96,8 @@ DEFAULT_MODEL_CATALOG: tuple[ModelProfile, ...] = (
             "synthesis": 0.89,
             "default": 0.90,
         },
+        provider_id="gemini",
+        runtime_model_id="gemini-3-flash-preview",
     ),
     ModelProfile(
         model_id="gemini-4-carbon",
@@ -111,6 +117,117 @@ DEFAULT_MODEL_CATALOG: tuple[ModelProfile, ...] = (
             "synthesis": 0.97,
             "default": 0.965,
         },
+        provider_id="alibaba",
+        runtime_model_id="qwen3.8-max",
+    ),
+)
+
+
+LIVE_HERMES_MODEL_CATALOG: tuple[ModelProfile, ...] = (
+    ModelProfile(
+        model_id="nous/upstage/solar-mini4:free",
+        family="solar-mini4",
+        tier="fast",
+        input_cost_per_1k_minor=0.20,
+        output_cost_per_1k_minor=0.60,
+        compute_cost_per_sec_minor=0.25,
+        mean_latency_sec=4.2,
+        base_Capabilities={
+            "triage": 0.94,
+            "extraction": 0.91,
+            "verification": 0.88,
+            "implementation": 0.78,
+            "research": 0.83,
+            "architecture": 0.55,
+            "synthesis": 0.70,
+            "default": 0.80,
+        },
+        provider_id="nous",
+        runtime_model_id="upstage/solar-mini4:free",
+    ),
+    ModelProfile(
+        model_id="gemini/gemini-3.1-flash-lite-preview",
+        family="gemini-3.1",
+        tier="fast",
+        input_cost_per_1k_minor=0.35,
+        output_cost_per_1k_minor=1.40,
+        compute_cost_per_sec_minor=0.30,
+        mean_latency_sec=5.5,
+        base_Capabilities={
+            "triage": 0.95,
+            "extraction": 0.93,
+            "verification": 0.90,
+            "implementation": 0.82,
+            "research": 0.85,
+            "architecture": 0.62,
+            "synthesis": 0.75,
+            "default": 0.83,
+        },
+        provider_id="gemini",
+        runtime_model_id="gemini-3.1-flash-lite-preview",
+    ),
+    ModelProfile(
+        model_id="nous/openai/gpt-5.4-mini",
+        family="gpt-5.4",
+        tier="balanced",
+        input_cost_per_1k_minor=1.20,
+        output_cost_per_1k_minor=4.80,
+        compute_cost_per_sec_minor=0.55,
+        mean_latency_sec=4.0,
+        base_Capabilities={
+            "triage": 0.97,
+            "extraction": 0.96,
+            "verification": 0.94,
+            "implementation": 0.92,
+            "research": 0.93,
+            "architecture": 0.86,
+            "synthesis": 0.90,
+            "default": 0.91,
+        },
+        provider_id="nous",
+        runtime_model_id="openai/gpt-5.4-mini",
+    ),
+    ModelProfile(
+        model_id="gemini/gemini-3-flash-preview",
+        family="gemini-3",
+        tier="balanced",
+        input_cost_per_1k_minor=1.65,
+        output_cost_per_1k_minor=6.60,
+        compute_cost_per_sec_minor=0.65,
+        mean_latency_sec=5.8,
+        base_Capabilities={
+            "triage": 0.975,
+            "extraction": 0.965,
+            "verification": 0.95,
+            "implementation": 0.93,
+            "research": 0.94,
+            "architecture": 0.88,
+            "synthesis": 0.91,
+            "default": 0.92,
+        },
+        provider_id="gemini",
+        runtime_model_id="gemini-3-flash-preview",
+    ),
+    ModelProfile(
+        model_id="alibaba/qwen3.8-max",
+        family="qwen-3.8",
+        tier="frontier",
+        input_cost_per_1k_minor=6.50,
+        output_cost_per_1k_minor=19.50,
+        compute_cost_per_sec_minor=1.40,
+        mean_latency_sec=8.5,
+        base_Capabilities={
+            "triage": 0.985,
+            "extraction": 0.98,
+            "verification": 0.975,
+            "implementation": 0.965,
+            "research": 0.97,
+            "architecture": 0.96,
+            "synthesis": 0.97,
+            "default": 0.965,
+        },
+        provider_id="alibaba",
+        runtime_model_id="qwen3.8-max",
     ),
 )
 
@@ -128,6 +245,7 @@ class EconomicPolicy:
     human_intervention_latency_sec: float = 180.0
     min_expected_roi_ratio: float = 0.0
     max_step_attempts: int = 3
+    usd_to_minor_rate: float = 1_100.0
 
     def __post_init__(self) -> None:
         if not isinstance(self.currency, str) or len(self.currency) != 3 or not self.currency.isupper():
@@ -141,6 +259,7 @@ class EconomicPolicy:
             or self.time_cost_per_min_minor < 0
             or self.human_intervention_cost_minor < 0
             or self.human_intervention_latency_sec < 0
+            or self.usd_to_minor_rate <= 0
         ):
             raise ValueError("COST_RATES_INVALID")
         if self.max_step_attempts < 1 or self.max_step_attempts > 10:
@@ -149,7 +268,7 @@ class EconomicPolicy:
 
 @dataclass(frozen=True)
 class CostBreakdown:
-    """Exact cost accounting for one execution step or an entire objective."""
+    """Exact cost accounting separating measured telemetry from modeled economics."""
 
     token_api_cost_minor: float
     compute_infra_cost_minor: float
@@ -162,6 +281,14 @@ class CostBreakdown:
     output_tokens: int
     model_calls: int
     human_interventions: int
+    provider_reported_cost_usd: float | None = None
+    cost_source: str = "modeled_rate_card"
+    telemetry_mode: Literal[
+        "measured_live", "estimated_prior", "deterministic_simulation"
+    ] = "estimated_prior"
+    tool_calls_count: int = 0
+    provider_id: str | None = None
+    resolved_model_id: str | None = None
 
     @property
     def direct_cost_minor(self) -> float:
@@ -188,6 +315,28 @@ class CostBreakdown:
         data = asdict(self)
         data["direct_cost_minor"] = self.direct_cost_minor
         data["total_economic_cost_minor"] = self.total_economic_cost_minor
+        data["measured"] = {
+            "input_tokens": self.input_tokens,
+            "output_tokens": self.output_tokens,
+            "elapsed_seconds": self.elapsed_seconds,
+            "model_calls": self.model_calls,
+            "tool_calls_count": self.tool_calls_count,
+            "provider_reported_cost_usd": self.provider_reported_cost_usd,
+            "cost_source": self.cost_source,
+            "telemetry_mode": self.telemetry_mode,
+            "provider_id": self.provider_id,
+            "resolved_model_id": self.resolved_model_id,
+        }
+        data["estimated_modeled"] = {
+            "token_api_cost_minor": self.token_api_cost_minor,
+            "compute_infra_cost_minor": self.compute_infra_cost_minor,
+            "time_cost_minor": self.time_cost_minor,
+            "opportunity_cost_minor": self.opportunity_cost_minor,
+            "human_supervision_cost_minor": self.human_supervision_cost_minor,
+            "recovery_cost_minor": self.recovery_cost_minor,
+            "direct_cost_minor": self.direct_cost_minor,
+            "total_economic_cost_minor": self.total_economic_cost_minor,
+        }
         return data
 
 
@@ -663,10 +812,18 @@ class ModelRouter:
         self,
         engine: EconomicIntelligenceEngine,
         strategy: RoutingStrategy = "outcome_driven",
-        static_model_id: str = "gemini-4-carbon",
+        static_model_id: str | None = None,
     ) -> None:
         if strategy not in ("static", "dynamic", "outcome_driven"):
             raise ValueError("ROUTING_STRATEGY_INVALID")
+        if static_model_id is None:
+            if "gemini-4-carbon" in engine.models:
+                static_model_id = "gemini-4-carbon"
+            else:
+                static_model_id = next(
+                    (m.model_id for m in engine.models.values() if m.tier == "frontier"),
+                    list(engine.models.keys())[-1],
+                )
         if static_model_id not in engine.models:
             raise ValueError("STATIC_MODEL_NOT_IN_CATALOG")
         self.engine = engine

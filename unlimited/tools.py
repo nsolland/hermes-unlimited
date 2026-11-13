@@ -288,7 +288,7 @@ def register_company_tools(ctx, scoped_secret, scoped_identity):
                         out = {"request": args["request_id"], "task_id": item["task_id"],
                                **result}
                 elif name == "unlimited_mission_run":
-                    from .autonomy import AutonomousMissionEngine, BusinessObjective
+                    from .autonomy import AutonomousMissionEngine, BusinessObjective, IndependentOutcomeVerifier
                     from .economics import EconomicPolicy
                     from .memory_factory import CompanyMemoryStore
 
@@ -325,9 +325,24 @@ def register_company_tools(ctx, scoped_secret, scoped_identity):
                         identity=identity, verified_only=True, limit=5,
                     )
                     worker_fn = getattr(ctx, "mission_worker", None)
-                    engine_kwargs = {"verify_identity": verify, "routing_strategy": strategy}
+                    engine_kwargs = {
+                        "verify_identity": verify,
+                        "routing_strategy": strategy,
+                        "ledger_db_path": db_path,
+                    }
                     if callable(worker_fn):
                         engine_kwargs["worker"] = worker_fn
+                    elif scoped_secret("HERMES_UNLIMITED_LIVE_WORKER", "") == "1":
+                        from .economics import LIVE_HERMES_MODEL_CATALOG, EconomicIntelligenceEngine
+                        from .hermes_live_worker import HermesLiveIndependentCritic, HermesLiveWorkerAdapter
+                        engine_kwargs["economic_engine"] = EconomicIntelligenceEngine(
+                            models=LIVE_HERMES_MODEL_CATALOG,
+                            policy=policy,
+                        )
+                        engine_kwargs["worker"] = HermesLiveWorkerAdapter()
+                        engine_kwargs["verifier"] = IndependentOutcomeVerifier(
+                            independent_critic=HermesLiveIndependentCritic()
+                        )
                     mission_engine = AutonomousMissionEngine(**engine_kwargs)
                     report = mission_engine.execute_objective(
                         provider_id=provider,
@@ -422,6 +437,12 @@ def register_company_tools(ctx, scoped_secret, scoped_identity):
                         checks_failed=tuple(ver_raw["checks_failed"]),
                         deliverable_digest=ver_raw["deliverable_digest"],
                         evidence_digest=ver_raw["evidence_digest"],
+                        verifier_seal=ver_raw.get("verifier_seal", ""),
+                        independent_critic_verdict=ver_raw.get("independent_critic_verdict"),
+                        tenant_id=ver_raw.get("tenant_id", ""),
+                        company_id=ver_raw.get("company_id", ""),
+                        policy_digest=ver_raw.get("policy_digest", ""),
+                        authority_key_id=ver_raw.get("authority_key_id", "verifier-authority-v2"),
                     )
                     reconstructed = MissionExecutionReport(
                         objective_id=saved["objective_id"],
