@@ -29,6 +29,10 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
+from unlimited.browser_backend import (
+    BrowserBackend,
+    NullBackend,
+)
 from unlimited.demo_pipeline import (
     DemoPackage,
     build_demo_package,
@@ -59,6 +63,12 @@ class ScreenplayAdapter:
     recorder and demo pipeline. It adds scenario spec validation, a
     preflight-without-recording step, and a verification/smoke probe that
     confirms the produced package carries reproducible evidence.
+
+    Recording may be delegated to an injectable :class:`BrowserBackend`
+    (e.g. a real Playwright browser for live demos, or the bounded
+    :class:`NullBackend` for offline deterministic tests). The offline
+    deterministic path is the bounded fallback so demo packages stay
+    reproducible and inspectable without a display or network.
     """
 
     def __init__(
@@ -67,11 +77,12 @@ class ScreenplayAdapter:
         config: AdapterConfig | None = None,
         recorder: DemoRecorder | None = None,
         build: Callable[..., DemoPackage] | None = None,
+        browser_backend: BrowserBackend | None = None,
     ) -> None:
         self.config = config or AdapterConfig()
-        # FFmpeg is optional; preflight and scenario validation must not require it.
         self.recorder = recorder
         self.build = build if build is not None else build_demo_package
+        self.browser_backend = browser_backend or NullBackend()
 
     # -- scenario construction -------------------------------------------
 
