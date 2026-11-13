@@ -1352,9 +1352,10 @@ class AutonomousCompanyTests(unittest.TestCase):
         rep = cycle.mission_reports[0]
         self.assertTrue(rep.completion_semantics.produced_artifact)
         self.assertTrue(rep.completion_semantics.verified_artifact)
-        self.assertTrue(rep.completion_semantics.authorized_external_effect)
+        self.assertFalse(rep.completion_semantics.authorized_external_effect)
         self.assertTrue(rep.completion_semantics.measured_business_result)
-        self.assertEqual(rep.completion_semantics.external_effect_receipt_digest, dlv.receipt_digest)
+        self.assertIsNone(rep.completion_semantics.external_effect_receipt_digest)
+        self.assertIn("external delivery not confirmed", rep.completion_semantics.summary)
 
         # Idempotent replay to the same customer returns identical delivery receipt without error
         dlv_replay = company_os.delivery_channel.deliver_verified_service(

@@ -193,7 +193,8 @@ class AuthorizedCustomerDeliveryChannel:
     3. Explicit external-effect authorization (`authorize_external_effect=True`).
     4. Cryptographic `IndependentOutcomeVerifier` seal verification + anti-replay check.
     5. Durable SQLite transactional outbox idempotency (prevents duplicate customer dispatches).
-    Never sends unapproved real external emails or financial charges.
+    Outbox creation is NOT proof of external dispatch, delivery, or settlement.
+    No real external email, payment, or customer receipt is performed here.
     """
 
     def __init__(
@@ -899,21 +900,18 @@ class AutonomousCompanyOperatingSystem:
                     )
                     customer_deliveries.append(dlv_receipt)
                     delivery_id = dlv_receipt.delivery_id
-                    # Upgrade report completion semantics with authorized_external_effect=True
+                    # The outbox is a queued artifact, not a completed external effect.
                     upgraded_semantics = CompletionSemanticsReport(
                         produced_artifact=report.completion_semantics.produced_artifact,
                         verified_artifact=report.completion_semantics.verified_artifact,
-                        authorized_external_effect=True,
+                        authorized_external_effect=False,
                         measured_business_result=report.completion_semantics.measured_business_result,
-                        stage=(
-                            "measured_business_result"
-                            if report.completion_semantics.measured_business_result
-                            else "authorized_external_effect"
-                        ),
-                        external_effect_receipt_digest=dlv_receipt.receipt_digest,
+                        stage=report.completion_semantics.stage,
+                        external_effect_receipt_digest=None,
                         summary=(
-                            f"Independently verified outcome delivered via authorized channel "
-                            f"({dlv_receipt.delivery_id}) with measured net value {report.net_economic_value_minor} {obj.currency}."
+                            f"Independently verified artifact queued in authorized outbox "
+                            f"({dlv_receipt.delivery_id}); external delivery not confirmed. "
+                            f"Modeled net economic value {report.net_economic_value_minor} {obj.currency}."
                         ),
                     )
                     report = MissionExecutionReport(
