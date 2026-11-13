@@ -8,6 +8,17 @@ import json
 
 SCHEMAS = (
     {
+        "name": "unlimited_connection_manage",
+        "description": "Manage tenant-owned provider connections in native Hermes UX. Never accepts credentials or secrets; only host-vault references.",
+        "parameters": {"type": "object", "properties": {
+            "operation": {"type": "string", "enum": ["connect", "status", "disconnect"]},
+            "connection_id": {"type": "string"},
+            "provider": {"type": "string", "enum": ["smtp", "stripe"]},
+            "secret_ref": {"type": "string"},
+            "config": {"type": "object"}},
+            "required": ["operation", "connection_id"], "additionalProperties": False},
+    },
+    {
         "name": "unlimited_company_create",
         "description": "Create a tenant-scoped AI-native company in the provider registry.",
         "parameters": {"type": "object", "properties": {
@@ -252,7 +263,32 @@ def register_company_tools(ctx, scoped_secret, scoped_identity):
                     return {"request": request_id, "state": "running",
                             "task_id": response["task_id"], "executed": False}
 
-                if name == "unlimited_a2ui_surface":
+                if name == "unlimited_connection_manage":
+                    from .customer_connections import CustomerConnectionRegistry
+                    from .customer_connection_api import CustomerConnectionController
+                    registry = CustomerConnectionRegistry(
+                        db_path, lambda t, actor: verify(provider, t, actor))
+                    # Hermes signed JustYou session is the only identity source.
+                    controller = CustomerConnectionController(
+                        registry, lambda _session: (tenant, identity))
+                    op = args["operation"]
+                    cid = args["connection_id"]
+                    if op in ("connect", "disconnect"):
+                        # The Hermes host must authorize each mutation separately;
+                        # tool args alone never grant effect authority.
+                        approve = getattr(ctx, "approve_customer_connection", None)
+                        if not callable(approve) or approve(tenant, identity, op, cid) is not True:
+                            raise PermissionError("HERMES_CONNECTION_APPROVAL_REQUIRED")
+                    if op == "connect":
+                        out = controller.connect(None, args)
+                    elif op == "status":
+                        out = controller.get(None, cid)
+                    elif op == "disconnect":
+                        controller.disconnect(None, cid)
+                        out = {"connection_id": cid, "enabled": False}
+                    else:
+                        raise ValueError("INVALID_CONNECTION_OPERATION")
+                elif name == "unlimited_a2ui_surface":
                     from .a2ui_adapter import company_surface, mission_surface, readiness_surface, request_surface
                     view = args["view"]
                     if view == "companies" and "company_id" not in args:
@@ -570,7 +606,7 @@ def register_company_tools(ctx, scoped_secret, scoped_identity):
                 else:
                     out = {"companies": store.list_companies(provider, tenant, identity)}
                 return json.dumps(out, sort_keys=True)
-            except (PermissionError, RuntimeError, ValueError, KeyError, TypeError) as exc:
+            except (PermissionError, RuntimeError, ValueError, KeyError, TypeError, LookupError) as exc:
                 return json.dumps({"ok": False, "reason": type(exc).__name__}, sort_keys=True)
         return handler
 

@@ -83,6 +83,23 @@ class ToolIntegrationTests(unittest.TestCase):
     def call(self, tool, args=None):
         return json.loads(self.ctx.handlers[tool](args or {}))
 
+    def test_hermes_connection_management_requires_host_approval(self):
+        tool = "unlimited_connection_manage"
+        connect = {"operation": "connect", "connection_id": "mail",
+                   "provider": "smtp", "secret_ref": "vault://tenant-a/mail",
+                   "config": {"host": "smtp.example.org", "sender": "sender@example.org"}}
+        denied = self.call(tool, connect)
+        self.assertFalse(denied["ok"])
+        self.ctx.approve_customer_connection = lambda tenant, identity, operation, cid: (
+            tenant == "tenant-a" and identity == "@owner" and cid == "mail")
+        created = self.call(tool, connect)
+        self.assertEqual(created["connection_id"], "mail")
+        self.assertEqual(self.call(tool, {"operation": "status", "connection_id": "mail"})["provider"], "smtp")
+        self.assertFalse(self.call(tool, {"**": "invalid"})["ok"])
+        disconnected = self.call(tool, {"operation": "disconnect", "connection_id": "mail"})
+        self.assertFalse(disconnected["enabled"])
+        self.assertFalse(self.call(tool, {"operation": "status", "connection_id": "mail"})["ok"])
+
     def test_manifest_declares_all_registered_tools(self):
         manifest = (ROOT / "plugin.yaml").read_text(encoding="utf-8")
         tools_section = manifest.split("provides_tools:", 1)[1].split("\nrequires_env:", 1)[0]

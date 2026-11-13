@@ -12,6 +12,7 @@ provides_tools:
   - unlimited_service_request
   - unlimited_company_list
   - unlimited_a2ui_surface
+  - unlimited_connection_manage
   - unlimited_service_dispatch
   - unlimited_service_result
   - unlimited_mission_run
