@@ -18,3 +18,9 @@ Mandatory before production approval:
 6. Record evidence and explicit production approval before public merge, tag or release.
 
 Never publish private infrastructure, account or billing information in public repo metadata.
+
+2026-11-13 Telegram polling runtime:
+- TelegramPollRunner has durable update offset, single-consumer lock and fail-closed behavior; it checkpoints only after JustYou durable inbox + Hermes task observation.
+- Unit tests cover restart, effect failure, concurrent consumer and untrusted updates.
+- NOT DEPLOYED: The configured real Telegram bot may be consumed by other agents; a second polling consumer can steal updates. Do not activate without a single owner and an actual long-lived signed JustYou registry/profile binding and secure token provisioning.
+- Live Telegram acceptance used a fresh isolated test identity and isolated Hermes board, not the user's production JustYou identity. A real model was not executed. No independent external effect witness or monitored backup/restore is available.
