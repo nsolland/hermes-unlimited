@@ -1,0 +1,32 @@
+{
+  "schema": "hermes_live_acceptance_result_v1",
+  "date_utc": "2026-11-13T07:46:05.158924+00:00",
+  "repo": "nsolland/hermes-unlimited-dev",
+  "branch": "feat/agy-autonomous-company-20261113",
+  "tested_commit": "ff16c53",
+  "offline": {
+    "passed": 129,
+    "skipped": 2,
+    "subtests_passed": 24
+  },
+  "live": {
+    "providers": [
+      "nous",
+      "alibaba"
+    ],
+    "exit_code": 124,
+    "status": "FAILED_TIMEOUT_360_SECONDS",
+    "objectives_verified": 0,
+    "objective_1": "NOT_VERIFIED",
+    "objective_2": "NOT_EXECUTED",
+    "objective_3": "NOT_EXECUTED",
+    "diagnostics": [
+      "HERMES_WALL_CLOCK_TIMEOUT:55s (confirmed twice)",
+      "HTTP 402 OpenRouter insufficient credits for openai/gpt-5.4-mini",
+      "HTTP 401 Alibaba Coding Plan invalid or expired access token",
+      "Gemini previously HTTP 429 free-tier quota exhausted"
+    ]
+  },
+  "gate": "BLOCKED",
+  "notes": "Live call wall-clock protection triggers, but complete multi-step mission remains blocked by model credentials/capacity and SLA. No approval or public release. Concurrent AGY working tree modifications excluded from this commit."
+}
