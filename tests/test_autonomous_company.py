@@ -1468,6 +1468,14 @@ class AutonomousCompanyTests(unittest.TestCase):
         breaker.record_failure("gemini", "HTTP 429 rate limit / quota exhausted")
         self.assertTrue(breaker.is_tripped("gemini"))
 
+    def test_25_openrouter_override_is_rejected(self) -> None:
+        from unlimited.hermes_live_worker import HermesLiveWorkerAdapter
+        with self.assertRaisesRegex(ValueError, "OPENROUTER_NOT_ALLOWED_USE_NOUS_DIRECT"):
+            HermesLiveWorkerAdapter(
+                route_overrides={("step-1-triage", 1): ("openrouter", "openai/gpt-5.4-mini")}
+            )
+
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -386,6 +386,8 @@ class HermesLiveWorkerAdapter:
         self.max_iterations = max_iterations
         self.run_budget_seconds = run_budget_seconds
         self.route_overrides = dict(route_overrides or {})
+        if any(provider.lower() == "openrouter" for provider, _model in self.route_overrides.values()):
+            raise ValueError("OPENROUTER_NOT_ALLOWED_USE_NOUS_DIRECT")
         self.response_mutators = dict(response_mutators or {})
         self.circuit_breaker = circuit_breaker or ProviderCircuitBreaker(
             excluded_providers=excluded_providers
@@ -644,6 +646,8 @@ class HermesLiveWorkerAdapter:
         else:
             provider_id, runtime_model_id = resolve_provider_and_model(model_id, self.catalog)
 
+        if provider_id.lower() == "openrouter":
+            raise ValueError("OPENROUTER_NOT_ALLOWED_USE_NOUS_DIRECT")
         if self.circuit_breaker.is_tripped(provider_id):
             reason = self.circuit_breaker.trip_reason(provider_id) or "PROVIDER_CIRCUIT_OPEN"
             err_msg = f"PROVIDER_CIRCUIT_BREAKER_OPEN:{provider_id}:{reason}"

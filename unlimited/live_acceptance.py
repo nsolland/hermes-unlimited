@@ -6,8 +6,8 @@ and `HermesLiveIndependentCritic` to verify:
 2. Three real, bounded business objectives with actual LLM calls and tool usage (`file` toolset).
 3. Autonomous planning, execution, failure recovery, independent verification, checkpoint/resume,
    durable SQLite idempotency, and Service Factory synthesis.
-4. Real model switching under live provider failures (`openrouter` HTTP 402 & `alibaba-coding-plan`
-   HTTP 401 -> automatic failover to `nous`, `gemini`, and `alibaba`).
+4. Real model switching on runtime errors and injected validation failures, using
+   authorized model providers only; OpenRouter is not part of the acceptance route.
 5. Live comparison of `static`, `dynamic`, and `outcome_driven` routing on an identical objective.
 6. Strict separation of measured telemetry (tokens, provider USD cost, wall-clock latency) from
    modeled economic estimates.
@@ -588,18 +588,14 @@ def run_live_acceptance_suite(output_path: str | Path | None = DEFAULT_EVIDENCE_
             base["executive_summary"] = "TODO: placeholder summary to test live autonomous repair."
             return base
 
-        # Route step-1-triage attempt 1 to OpenRouter (real live HTTP 402 Insufficient credits)
-        # Route step-2-research attempt 1 to alibaba-coding-plan (real live HTTP 401 auth failure)
-        # Inject placeholder on step-3-build attempt 1 to force diagnostic repair & model switch on attempt 2
+        # Exercise real provider routing and output repair without deliberately
+        # routing through an unfunded third-party gateway.
+        # Inject placeholder on step-3-build attempt 1 to force repair.
         worker3 = HermesLiveWorkerAdapter(
             catalog=LIVE_HERMES_MODEL_CATALOG,
             workspace_dir=workspace_dir,
             enabled_toolsets=["file"],
             circuit_breaker=shared_breaker,
-            route_overrides={
-                ("step-1-triage", 1): ("openrouter", "openai/gpt-5.4-mini"),
-                ("step-2-research", 1): ("alibaba-coding-plan", "qwen3.5-plus"),
-            },
             response_mutators={
                 ("step-3-build", 1): _inject_placeholder_on_first_build,
             },
