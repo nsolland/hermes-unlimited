@@ -15,6 +15,7 @@ import tempfile
 import threading
 import unittest
 import uuid
+import urllib.request
 from datetime import datetime, timedelta, timezone
 
 
@@ -25,6 +26,7 @@ from unlimited.justyou_inbound import JustYouInboundBridge
 from unlimited.justyou_durable_inbox import DurableInboundInbox
 from unlimited.justyou_hermes_sink import HermesInboundSink
 from unlimited.justyou_webhook import HMACWebhookIngress
+from unlimited.justyou_telegram import TelegramInboundAdapter
 import hashlib
 import hmac
 
@@ -275,13 +277,75 @@ class LiveInboundToHermesAcceptance(unittest.TestCase):
                             and item.get("title") == "Verified inbound: crash-1"]
                 self.assertEqual(len(matching), 1, matching)
                 recovered_crash.close()
+                telegram_live_status = "NOT_RUN"
+                if os.environ.get("HERMES_UNLIMITED_LIVE_TELEGRAM") == "1":
+                    # The actual user message must come from authenticated
+                    # Telegram Bot API, not a fixture or fabricated update.
+                    env_file = pathlib.Path.home() / ".hermes/.env"
+                    settings = {}
+                    for line in env_file.read_text().splitlines():
+                        if line.startswith("TELEGRAM_") and "=" in line:
+                            key, value = line.split("=", 1)
+                            settings[key] = value.strip().strip('"').strip("'")
+                    token = settings["TELEGRAM_BOT_TOKEN"]
+                    chat = int(settings["TELEGRAM_HOME_CHANNEL"])
+                    allowed = {int(x.strip()) for x in
+                               settings["TELEGRAM_ALLOWED_USERS"].split(",")
+                               if x.strip().isdigit()}
+                    target_id = int(os.environ.get(
+                        "HERMES_UNLIMITED_TELEGRAM_MESSAGE_ID", "31057"))
+                    request_url = ("https://api.telegram.org/bot" + token +
+                                   "/getUpdates?limit=30&timeout=0")
+                    with urllib.request.urlopen(request_url, timeout=20) as response:
+                        data = json.load(response)
+                    self.assertTrue(data.get("ok"), "Telegram Bot API rejected")
+                    matching_updates = [update for update in data["result"]
+                        if update.get("message", {}).get("message_id") == target_id
+                        and update["message"].get("chat", {}).get("id") == chat]
+                    self.assertEqual(len(matching_updates), 1,
+                                     "original Telegram message not available")
+                    update = matching_updates[0]
+                    sender_id = update["message"]["from"]["id"]
+                    self.assertIn(sender_id, allowed)
+                    # Bind authenticated Telegram endpoint to JustYou sender.
+                    addresses.bind_channel(sender, "telegram", str(sender_id))
+                    telegram_db = str(state / "telegram-live-inbox.sqlite")
+                    telegram_inbox = DurableInboundInbox(
+                        telegram_db, HermesInboundSink(
+                            kanban, tenant, profile, identity_evidence))
+                    telegram_adapter = TelegramInboundAdapter(
+                        chat_id=chat, allowed_sender_ids=allowed,
+                        recipient=recipient, frontdoor=frontdoor,
+                        inbox=telegram_inbox)
+                    delivery = telegram_adapter.receive_update(update)
+                    self.assertEqual(telegram_inbox.status(delivery.key),
+                                     "delivered")
+                    telegram_inbox.close()
+                    restarted_telegram = DurableInboundInbox(
+                        telegram_db, HermesInboundSink(
+                            kanban, tenant, profile, identity_evidence))
+                    restarted_adapter = TelegramInboundAdapter(
+                        chat_id=chat, allowed_sender_ids=allowed,
+                        recipient=recipient, frontdoor=frontdoor,
+                        inbox=restarted_telegram)
+                    self.assertEqual(restarted_adapter.receive_update(update).key,
+                                     delivery.key)
+                    self.assertEqual(restarted_telegram.recover(), 0)
+                    matching_tasks = [item for item in kanban._invoke(
+                        ["list", "--tenant", tenant, "--json"])
+                        if item.get("title") ==
+                        "Verified inbound: " + str(target_id)]
+                    self.assertEqual(len(matching_tasks), 1,
+                                     "Telegram Hermes task not uniquely observed")
+                    restarted_telegram.close()
+                    telegram_live_status = "PASS"
                 print(json.dumps({
                     "live_inbound": "PASS", "signed_session": "PASS",
                     "durable_webhook_to_real_hermes": "PASS",
                     "crash_after_effect_recovery": "PASS",
                     "real_hermes_kanban": "PASS", "duplicate": "BLOCKED",
                     "invalid_origins": "BLOCKED",
-                    "external_provider": "NOT_TESTED",
+                    "external_provider": telegram_live_status,
                     "model_execution": "NOT_RUN",
                     "isolated_home": True,
                     "task_status": observed["status"],
