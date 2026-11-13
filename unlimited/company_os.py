@@ -366,6 +366,59 @@ class AuthorizedCustomerDeliveryChannel:
             )
         return receipt
 
+    def dispatch_queued_email(
+        self, *, provider_id: str, tenant_id: str, company_id: str,
+        identity: str, delivery_id: str, recipient: str, email_adapter,
+        approve_effect: Callable[[str, str, str], bool],
+        authorize_external_effect: bool = False,
+    ):
+        """Dispatch one approved outbox record; persist provider acceptance separately.
+
+        An uncertain transport result is not retried automatically, to avoid
+        duplicate customer messages. SMTP acceptance is never delivery proof.
+        """
+        from .external_effects import ExternalEffectReceipt
+        if self.verify_identity(provider_id, tenant_id, identity) is not True:
+            raise UnverifiedIdentity("JUSTYOU_IDENTITY_NOT_VERIFIED")
+        if authorize_external_effect is not True:
+            raise PermissionError("EXTERNAL_CUSTOMER_EFFECT_NOT_AUTHORIZED")
+        if approve_effect(tenant_id, identity, delivery_id) is not True:
+            raise PermissionError("EXTERNAL_EFFECT_APPROVAL_REQUIRED")
+        with sqlite3.connect(self.database, timeout=10) as db:
+            db.execute("""CREATE TABLE IF NOT EXISTS customer_external_dispatch (
+                delivery_id TEXT PRIMARY KEY, state TEXT NOT NULL,
+                receipt_json TEXT
+            )""")
+            row = db.execute("""SELECT receipt_json FROM customer_delivery_outbox
+                WHERE delivery_id=? AND provider_id=? AND tenant_id=? AND company_id=?""",
+                (delivery_id, provider_id, tenant_id, company_id)).fetchone()
+            if not row:
+                raise PermissionError("OUTBOX_DELIVERY_NOT_FOUND_IN_SCOPE")
+            queued = CustomerDeliveryReceipt(**json.loads(row[0]))
+            existing = db.execute("SELECT state, receipt_json FROM customer_external_dispatch WHERE delivery_id=?",
+                                  (delivery_id,)).fetchone()
+            if existing:
+                if existing[0] == "provider_accepted" and existing[1]:
+                    return ExternalEffectReceipt(**json.loads(existing[1]))
+                raise RuntimeError("DISPATCH_ALREADY_CLAIMED_MANUAL_RECONCILIATION_REQUIRED")
+            # Claim before network IO: timeout/crash cannot silently double-send.
+            db.execute("INSERT INTO customer_external_dispatch(delivery_id,state) VALUES (?,?)",
+                       (delivery_id, "uncertain"))
+        receipt = email_adapter.send(
+            tenant_id=tenant_id, identity=identity, effect_id=delivery_id,
+            recipient=recipient, subject=queued.message_subject, body=queued.message_body,
+            verify_identity=lambda tenant, actor: self.verify_identity(provider_id, tenant, actor),
+            approve_effect=approve_effect, authorized=authorize_external_effect,
+        )
+        if receipt.kind != "email" or receipt.effect_id != delivery_id or receipt.tenant_id != tenant_id:
+            raise RuntimeError("EXTERNAL_RECEIPT_SCOPE_MISMATCH")
+        if receipt.state != "provider_accepted":
+            raise RuntimeError("EXTERNAL_PROVIDER_DID_NOT_ACCEPT")
+        with sqlite3.connect(self.database, timeout=10) as db:
+            db.execute("UPDATE customer_external_dispatch SET state=?, receipt_json=? WHERE delivery_id=?",
+                       (receipt.state, json.dumps(receipt.as_dict(), sort_keys=True), delivery_id))
+        return receipt
+
     def list_deliveries(
         self,
         provider_id: str,

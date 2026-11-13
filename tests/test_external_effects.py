@@ -55,3 +55,42 @@ class ExternalEffectTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class CompanyOSDispatchTests(unittest.TestCase):
+    def test_outbox_dispatch_is_approval_gated_and_idempotent(self):
+        import json
+        import sqlite3
+        import tempfile
+        from pathlib import Path
+        from unlimited.company_os import AuthorizedCustomerDeliveryChannel, CustomerDeliveryReceipt
+        from unlimited.external_effects import ExternalEffectReceipt
+        from unittest.mock import Mock
+        with tempfile.TemporaryDirectory() as d:
+            db_path = str(Path(d) / "outbox.sqlite")
+            channel = AuthorizedCustomerDeliveryChannel(
+                db_path, lambda provider, tenant, identity: (provider, tenant, identity) == ("owner", "t", "captain"),
+                verifier=Mock())
+            receipt = CustomerDeliveryReceipt(
+                delivery_id="dlv-1", provider_id="owner", tenant_id="t", company_id="co",
+                objective_id="obj", service_id="svc", customer_id="customer",
+                channel="transactional_outbox", authorized_by_identity="captain",
+                external_effect_authorized=True, deliverable_digest="digest", verifier_seal="seal",
+                message_subject="Report", message_body="Verified", receipt_digest="hash", created_at=1.0)
+            with sqlite3.connect(db_path) as db:
+                db.execute("INSERT INTO customer_delivery_outbox VALUES (?,?,?,?,?,?,?,?)",
+                           ("key", "dlv-1", "owner", "t", "co", "obj", "customer", json.dumps(receipt.as_dict())))
+            adapter = Mock()
+            adapter.send.return_value = ExternalEffectReceipt("email", "t", "dlv-1", "provider_accepted", "dlv-1", "digest")
+            kwargs = dict(provider_id="owner", tenant_id="t", company_id="co", identity="captain",
+                          delivery_id="dlv-1", recipient="customer@example.org", email_adapter=adapter,
+                          approve_effect=lambda t, i, e: e == "dlv-1")
+            with self.assertRaises(PermissionError):
+                channel.dispatch_queued_email(**kwargs)
+            adapter.send.assert_not_called()
+            first = channel.dispatch_queued_email(**kwargs, authorize_external_effect=True)
+            second = channel.dispatch_queued_email(**kwargs, authorize_external_effect=True)
+            self.assertEqual(first, second)
+            adapter.send.assert_called_once()
+            self.assertFalse(first.externally_delivered)
+            with self.assertRaises(PermissionError):
+                channel.dispatch_queued_email(**{**kwargs, "tenant_id": "other"}, authorize_external_effect=True)
