@@ -14,12 +14,16 @@ Implements the 9-step autonomous loop:
 """
 from __future__ import annotations
 
+import concurrent.futures
 import hashlib
 import hmac
 import json
 import os
 import re
+import signal
 import sqlite3
+import threading
+import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Literal, Mapping
@@ -92,6 +96,7 @@ class WorkStep:
     marginal_value_share: float = 0.25
     estimated_input_tokens: int = 800
     estimated_output_tokens: int = 450
+    step_deadline_seconds: float | None = None
 
     def __post_init__(self) -> None:
         if not self.step_id or not isinstance(self.step_id, str):
@@ -102,6 +107,8 @@ class WorkStep:
             raise ValueError("COMPLEXITY_INVALID")
         if not (0.0 < self.marginal_value_share <= 1.0):
             raise ValueError("MARGINAL_VALUE_SHARE_INVALID")
+        if self.step_deadline_seconds is not None and self.step_deadline_seconds <= 0:
+            raise ValueError("STEP_DEADLINE_INVALID")
 
 
 @dataclass(frozen=True)
@@ -242,6 +249,31 @@ class VerifierSigningAuthority:
         return True
 
 
+CompletionStage = Literal[
+    "none",
+    "produced_artifact",
+    "verified_artifact",
+    "authorized_external_effect",
+    "measured_business_result",
+]
+
+
+@dataclass(frozen=True)
+class CompletionSemanticsReport:
+    """Explicit separation of completion stages so self-reported artifacts are never conflated with verified business results."""
+
+    produced_artifact: bool = False
+    verified_artifact: bool = False
+    authorized_external_effect: bool = False
+    measured_business_result: bool = False
+    stage: CompletionStage = "none"
+    external_effect_receipt_digest: str | None = None
+    summary: str = ""
+
+    def as_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
 @dataclass(frozen=True)
 class MissionExecutionReport:
     """End-to-end report for an autonomous business objective execution."""
@@ -284,6 +316,9 @@ class MissionExecutionReport:
     report_digest: str
     measured_telemetry: Mapping[str, Any] = field(default_factory=dict)
     modeled_economics: Mapping[str, Any] = field(default_factory=dict)
+    completion_semantics: CompletionSemanticsReport = field(
+        default_factory=CompletionSemanticsReport
+    )
 
     def as_dict(self) -> dict:
         data = asdict(self)
@@ -305,6 +340,7 @@ class ObjectiveDecomposer:
             kw in combined_text for kw in ("complex", "audit", "synthesis", "architecture")
         )
         build_kind = "synthesis" if is_complex_synthesis else "implementation"
+        base_deadline = float(getattr(objective.policy, "step_deadline_seconds", 35.0) or 35.0)
         steps = (
             WorkStep(
                 step_id="step-1-triage",
@@ -317,6 +353,7 @@ class ObjectiveDecomposer:
                 marginal_value_share=0.15,
                 estimated_input_tokens=600,
                 estimated_output_tokens=300,
+                step_deadline_seconds=min(base_deadline, 25.0),
             ),
             WorkStep(
                 step_id="step-2-research",
@@ -329,6 +366,7 @@ class ObjectiveDecomposer:
                 marginal_value_share=0.25,
                 estimated_input_tokens=950,
                 estimated_output_tokens=500,
+                step_deadline_seconds=min(base_deadline, 30.0),
             ),
             WorkStep(
                 step_id="step-3-build",
@@ -341,6 +379,7 @@ class ObjectiveDecomposer:
                 marginal_value_share=0.40,
                 estimated_input_tokens=1200,
                 estimated_output_tokens=750,
+                step_deadline_seconds=base_deadline,
             ),
             WorkStep(
                 step_id="step-4-critique",
@@ -353,6 +392,7 @@ class ObjectiveDecomposer:
                 marginal_value_share=0.20,
                 estimated_input_tokens=900,
                 estimated_output_tokens=350,
+                step_deadline_seconds=min(base_deadline, 25.0),
             ),
         )
         ObjectiveDecomposer._validate_dag(steps)
@@ -882,6 +922,79 @@ class AutonomousMissionEngine:
                 )
                 """
             )
+            db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS mission_checkpoints (
+                    checkpoint_key TEXT PRIMARY KEY,
+                    tenant_id TEXT NOT NULL,
+                    company_id TEXT NOT NULL,
+                    objective_id TEXT NOT NULL,
+                    checkpoint_json TEXT NOT NULL,
+                    updated_at REAL NOT NULL
+                )
+                """
+            )
+
+    @staticmethod
+    def _checkpoint_key(provider_id: str, tenant_id: str, company_id: str, objective_id: str) -> str:
+        return f"{provider_id}:{tenant_id}:{company_id}:{objective_id}"
+
+    def save_durable_checkpoint(
+        self,
+        *,
+        provider_id: str,
+        tenant_id: str,
+        company_id: str,
+        objective_id: str,
+        checkpoint_state: Mapping[str, Any],
+    ) -> None:
+        if not self.ledger_db_path:
+            return
+        serializable = dict(checkpoint_state)
+        raw_receipts = serializable.get("step_receipts", ())
+        serializable["step_receipts"] = [
+            asdict(r) if isinstance(r, StepAttemptReceipt) else r for r in raw_receipts
+        ]
+        payload_json = json.dumps(serializable, sort_keys=True, default=str)
+        ck_key = self._checkpoint_key(provider_id, tenant_id, company_id, objective_id)
+        with sqlite3.connect(self.ledger_db_path, timeout=10) as db:
+            db.execute(
+                """
+                INSERT OR REPLACE INTO mission_checkpoints(
+                    checkpoint_key, tenant_id, company_id, objective_id, checkpoint_json, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (ck_key, tenant_id, company_id, objective_id, payload_json, time.time()),
+            )
+
+    def load_durable_checkpoint(
+        self,
+        *,
+        provider_id: str,
+        tenant_id: str,
+        company_id: str,
+        objective_id: str,
+    ) -> dict[str, Any] | None:
+        if not self.ledger_db_path:
+            return None
+        ck_key = self._checkpoint_key(provider_id, tenant_id, company_id, objective_id)
+        with sqlite3.connect(self.ledger_db_path, timeout=10) as db:
+            row = db.execute(
+                "SELECT checkpoint_json FROM mission_checkpoints WHERE checkpoint_key=?",
+                (ck_key,),
+            ).fetchone()
+        if not row:
+            return None
+        loaded = json.loads(row[0])
+        if not isinstance(loaded, dict):
+            return None
+        reconstructed_receipts: list[StepAttemptReceipt] = []
+        for raw_rec in loaded.get("step_receipts", ()):
+            rec_obj = self._reconstruct_receipt(raw_rec)
+            if rec_obj is not None:
+                reconstructed_receipts.append(rec_obj)
+        loaded["step_receipts"] = reconstructed_receipts
+        return loaded
 
     def _load_durable_receipt(self, idem_key: str) -> StepAttemptReceipt | None:
         if idem_key in self._idempotency_ledger:
@@ -1002,6 +1115,133 @@ class AutonomousMissionEngine:
             resolved_model_id=worker_res.resolved_model_id or profile.runtime_model_id or selected_model,
         )
 
+    def _invoke_worker_with_deadline(
+        self,
+        *,
+        step: WorkStep,
+        selected_model: str,
+        attempt: int,
+        worker_ctx: dict[str, Any],
+        repair_hints: tuple[str, ...],
+        effective_deadline_sec: float,
+    ) -> tuple[StepWorkerResult, bool]:
+        """Invoke step worker under a strict per-step deadline.
+
+        Returns `(worker_result, deadline_exceeded)`. Never allows a single step
+        or hanging provider call to consume the full mission SLA.
+        """
+        deadline = max(0.02, float(effective_deadline_sec))
+        worker_ctx["step_deadline_seconds"] = deadline
+        t0 = time.monotonic()
+        profile = self.economic_engine.models.get(selected_model)
+
+        if threading.current_thread() is threading.main_thread() and hasattr(signal, "setitimer"):
+            def _step_sigalrm(_signum: int, _frame: Any) -> None:
+                raise TimeoutError(
+                    f"STEP_DEADLINE_EXCEEDED:{step.step_id}:{selected_model}>{deadline:.2f}s"
+                )
+
+            prev_handler = signal.getsignal(signal.SIGALRM)
+            prev_timer = signal.getitimer(signal.ITIMER_REAL)
+            signal.signal(signal.SIGALRM, _step_sigalrm)
+            signal.setitimer(signal.ITIMER_REAL, deadline + 0.5)
+            try:
+                worker_res = self.worker(
+                    step,
+                    selected_model,
+                    attempt,
+                    worker_ctx,
+                    repair_hints,
+                )
+            except TimeoutError as exc:
+                return (
+                    StepWorkerResult(
+                        status="runtime_error",
+                        output=None,
+                        input_tokens=0,
+                        output_tokens=0,
+                        latency_sec=round(deadline, 3),
+                        error_message=str(exc),
+                        cost_source="timeout_circuit_breaker",
+                        telemetry_mode="measured_live",
+                        provider_id=profile.provider_id if profile else None,
+                        resolved_model_id=profile.runtime_model_id if profile else selected_model,
+                        api_calls=1,
+                    ),
+                    True,
+                )
+            finally:
+                signal.setitimer(signal.ITIMER_REAL, 0)
+                signal.signal(signal.SIGALRM, prev_handler)
+                if prev_timer[0] > 0:
+                    rem = max(0.001, prev_timer[0] - (time.monotonic() - t0))
+                    signal.setitimer(signal.ITIMER_REAL, rem, prev_timer[1])
+        else:
+            pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+            future = pool.submit(
+                self.worker,
+                step,
+                selected_model,
+                attempt,
+                worker_ctx,
+                repair_hints,
+            )
+            try:
+                worker_res = future.result(timeout=deadline + 0.5)
+            except concurrent.futures.TimeoutError:
+                pool.shutdown(wait=False, cancel_futures=True)
+                return (
+                    StepWorkerResult(
+                        status="runtime_error",
+                        output=None,
+                        input_tokens=0,
+                        output_tokens=0,
+                        latency_sec=round(deadline, 3),
+                        error_message=f"STEP_DEADLINE_EXCEEDED:{step.step_id}:{selected_model}>{deadline:.2f}s",
+                        cost_source="timeout_circuit_breaker",
+                        telemetry_mode="measured_live",
+                        provider_id=profile.provider_id if profile else None,
+                        resolved_model_id=profile.runtime_model_id if profile else selected_model,
+                        api_calls=1,
+                    ),
+                    True,
+                )
+            finally:
+                pool.shutdown(wait=False)
+
+        wall_elapsed = time.monotonic() - t0
+        err_msg = str(worker_res.error_message or "")
+        if (
+            "STEP_DEADLINE_EXCEEDED" in err_msg
+            or "HERMES_WALL_CLOCK_TIMEOUT" in err_msg
+            or float(worker_res.latency_sec) > deadline
+            or wall_elapsed > deadline + 0.5
+        ):
+            capped_latency = round(min(float(worker_res.latency_sec), deadline), 3)
+            return (
+                StepWorkerResult(
+                    status="runtime_error",
+                    output=None,
+                    input_tokens=worker_res.input_tokens,
+                    output_tokens=worker_res.output_tokens,
+                    latency_sec=capped_latency,
+                    error_message=(
+                        err_msg
+                        if "STEP_DEADLINE_EXCEEDED" in err_msg
+                        else f"STEP_DEADLINE_EXCEEDED:{step.step_id}:{selected_model}:{worker_res.latency_sec:.2f}s>{deadline:.2f}s"
+                    ),
+                    provider_reported_cost_usd=worker_res.provider_reported_cost_usd,
+                    cost_source=worker_res.cost_source,
+                    telemetry_mode=worker_res.telemetry_mode,
+                    provider_id=worker_res.provider_id,
+                    resolved_model_id=worker_res.resolved_model_id,
+                    tool_calls=worker_res.tool_calls,
+                    api_calls=worker_res.api_calls,
+                ),
+                True,
+            )
+        return worker_res, False
+
     def execute_objective(
         self,
         *,
@@ -1011,6 +1251,7 @@ class AutonomousMissionEngine:
         objective: BusinessObjective,
         memory_lessons: tuple[str, ...] = (),
         checkpoint: Mapping[str, Any] | None = None,
+        resume_from_ledger: bool = False,
         interrupt_after_steps: int | None = None,
     ) -> MissionExecutionReport:
         """Run or resume an autonomous mission under strict JustYou & EV governance."""
@@ -1023,6 +1264,14 @@ class AutonomousMissionEngine:
         self.economic_engine.policy = objective.policy
         router = ModelRouter(self.economic_engine, strategy=self.routing_strategy)
         steps = ObjectiveDecomposer.decompose(objective)
+
+        if checkpoint is None and resume_from_ledger and self.ledger_db_path:
+            checkpoint = self.load_durable_checkpoint(
+                provider_id=provider_id,
+                tenant_id=tenant_id,
+                company_id=objective.company_id,
+                objective_id=objective.objective_id,
+            )
 
         # Restore from checkpoint if resuming an interrupted execution
         completed_outputs: dict[str, Mapping[str, Any]] = {}
@@ -1039,6 +1288,7 @@ class AutonomousMissionEngine:
         autonomous_recoveries = 0
         duplicates_prevented = 0
         human_interventions = 0
+        unavailable_models: list[str] = []
 
         if checkpoint is not None:
             if (
@@ -1058,10 +1308,39 @@ class AutonomousMissionEngine:
             failures_detected = int(checkpoint.get("failures_detected", 0))
             autonomous_recoveries = int(checkpoint.get("autonomous_recoveries", 0))
             duplicates_prevented = int(checkpoint.get("duplicates_prevented", 0))
+            unavailable_models = list(checkpoint.get("unavailable_models", ()))
             for raw_rec in checkpoint.get("step_receipts", ()):
                 rec_obj = self._reconstruct_receipt(raw_rec)
                 if rec_obj is not None:
                     step_receipts.append(rec_obj)
+
+        def _snapshot_checkpoint() -> dict[str, Any]:
+            state = {
+                "tenant_id": tenant_id,
+                "company_id": objective.company_id,
+                "objective_id": objective.objective_id,
+                "completed_outputs": dict(completed_outputs),
+                "step_receipts": list(step_receipts),
+                "spent_direct": spent_direct,
+                "spent_total_economic": spent_total_economic,
+                "recovery_spend": recovery_spend,
+                "elapsed_sec": elapsed_sec,
+                "total_calls": total_calls,
+                "total_in_tokens": total_in_tokens,
+                "total_out_tokens": total_out_tokens,
+                "failures_detected": failures_detected,
+                "autonomous_recoveries": autonomous_recoveries,
+                "duplicates_prevented": duplicates_prevented,
+                "unavailable_models": list(unavailable_models),
+            }
+            self.save_durable_checkpoint(
+                provider_id=provider_id,
+                tenant_id=tenant_id,
+                company_id=objective.company_id,
+                objective_id=objective.objective_id,
+                checkpoint_state=state,
+            )
+            return state
 
         stop_status: Literal[
             "VERIFIED_COMPLETE",
@@ -1073,7 +1352,6 @@ class AutonomousMissionEngine:
         ] | None = None
         stop_reason = ""
         steps_executed_this_run = 0
-        unavailable_models: list[str] = []
 
         for step in steps:
             if step.step_id in completed_outputs:
@@ -1086,6 +1364,7 @@ class AutonomousMissionEngine:
                 duplicates_prevented += 1
                 completed_outputs[step.step_id] = cached.output
                 step_receipts.append(cached)
+                _snapshot_checkpoint()
                 continue
 
             attempt = 1
@@ -1131,6 +1410,14 @@ class AutonomousMissionEngine:
                     stop_reason = decision.rationale
                     break
 
+                # Compute per-step wall-clock deadline bounded by remaining mission SLA
+                remaining_sla = max(0.1, float(objective.policy.sla_seconds) - elapsed_sec)
+                policy_step_deadline = float(
+                    getattr(objective.policy, "step_deadline_seconds", 35.0) or 35.0
+                )
+                step_deadline = float(step.step_deadline_seconds or policy_step_deadline)
+                effective_deadline = min(step_deadline, remaining_sla)
+
                 # Execute the step with the chosen model and role-scoped tools
                 tools_bound = ROLE_TOOLSETS[step.role]
                 worker_ctx = {
@@ -1146,13 +1433,16 @@ class AutonomousMissionEngine:
                     "required_deliverables": objective.required_deliverables,
                     "completed_outputs": completed_outputs,
                     "memory_lessons": memory_lessons,
+                    "remaining_sla_seconds": remaining_sla,
+                    "step_deadline_seconds": effective_deadline,
                 }
-                worker_res = self.worker(
-                    step,
-                    selected_model,
-                    attempt,
-                    worker_ctx,
-                    tuple(repair_hints),
+                worker_res, deadline_exceeded = self._invoke_worker_with_deadline(
+                    step=step,
+                    selected_model=selected_model,
+                    attempt=attempt,
+                    worker_ctx=worker_ctx,
+                    repair_hints=tuple(repair_hints),
+                    effective_deadline_sec=effective_deadline,
                 )
 
                 attempt_cost = self._build_attempt_cost(
@@ -1172,7 +1462,7 @@ class AutonomousMissionEngine:
 
                 # Validate step output before accepting
                 validation_error = self._validate_step_output(step, worker_res, objective)
-                if validation_error is None:
+                if validation_error is None and not deadline_exceeded:
                     receipt = self._make_step_receipt(
                         step_id=step.step_id,
                         attempt=attempt,
@@ -1188,6 +1478,7 @@ class AutonomousMissionEngine:
                     assert worker_res.output is not None
                     completed_outputs[step.step_id] = worker_res.output
                     self._save_durable_receipt(idem_key, receipt)
+                    _snapshot_checkpoint()
                     self.economic_engine.record_observation(
                         model_id=selected_model,
                         task_kind=step.task_kind,
@@ -1201,12 +1492,18 @@ class AutonomousMissionEngine:
                     step_succeeded = True
                     break
 
-                # Failure detected! Record failure and prepare autonomous recovery
+                # Failure detected! Record failure, persist checkpoint, and prepare autonomous recovery
                 failures_detected += 1
                 failure_kind: Literal["routing_error", "runtime_error", "invalid_output"]
                 if worker_res.status == "routing_error":
                     failure_kind = "routing_error"
-                    unavailable_models.append(selected_model)
+                    if selected_model not in unavailable_models:
+                        unavailable_models.append(selected_model)
+                elif deadline_exceeded:
+                    failure_kind = "runtime_error"
+                    if selected_model not in unavailable_models:
+                        unavailable_models.append(selected_model)
+                    failed_models.append(selected_model)
                 elif worker_res.status == "runtime_error":
                     failure_kind = "runtime_error"
                     failed_models.append(selected_model)
@@ -1235,6 +1532,7 @@ class AutonomousMissionEngine:
                     ev_digest=decision.digest,
                 )
                 step_receipts.append(receipt)
+                _snapshot_checkpoint()
                 attempt += 1
 
             if not step_succeeded:
@@ -1470,23 +1768,57 @@ class AutonomousMissionEngine:
             "roi_ratio": roi,
         }
 
-        checkpoint_state = {
-            "tenant_id": tenant_id,
-            "company_id": objective.company_id,
-            "objective_id": objective.objective_id,
-            "completed_outputs": completed_outputs,
-            "step_receipts": step_receipts,
-            "spent_direct": spent_direct,
-            "spent_total_economic": spent_total_economic,
-            "recovery_spend": recovery_spend,
-            "elapsed_sec": elapsed_sec,
-            "total_calls": total_calls,
-            "total_in_tokens": total_in_tokens,
-            "total_out_tokens": total_out_tokens,
-            "failures_detected": failures_detected,
-            "autonomous_recoveries": autonomous_recoveries,
-            "duplicates_prevented": duplicates_prevented,
-        }
+        checkpoint_state = _snapshot_checkpoint()
+
+        produced_artifact = bool(deliverables) and all(
+            deliverables.get(k) not in (None, "", [], {})
+            for k in objective.required_deliverables
+        )
+        verified_artifact = bool(
+            produced_artifact
+            and verification.independently_verified
+            and self.verifier.verify_receipt_authenticity(
+                verification,
+                deliverables=deliverables,
+                expected_tenant_id=tenant_id,
+                expected_company_id=objective.company_id,
+                expected_objective_id=objective.objective_id,
+            )
+        )
+        measured_business_result = bool(
+            verified_artifact
+            and stop_status == "VERIFIED_COMPLETE"
+            and verified_value > 0
+            and net_value > 0
+        )
+        if measured_business_result:
+            comp_stage: CompletionStage = "measured_business_result"
+            comp_summary = (
+                f"Independently verified deliverables with positive net economic value ({net_value} {objective.currency} minor); "
+                "external customer effects remain gated on explicit channel authorization."
+            )
+        elif verified_artifact:
+            comp_stage = "verified_artifact"
+            comp_summary = "Independently verified artifact; net economic outcome is non-positive."
+        elif produced_artifact:
+            comp_stage = "produced_artifact"
+            comp_summary = (
+                "Worker produced candidate deliverables, but independent verification did NOT pass; "
+                "self-reported output is never treated as completion."
+            )
+        else:
+            comp_stage = "none"
+            comp_summary = "No complete deliverable artifact produced."
+
+        completion_semantics = CompletionSemanticsReport(
+            produced_artifact=produced_artifact,
+            verified_artifact=verified_artifact,
+            authorized_external_effect=False,
+            measured_business_result=measured_business_result,
+            stage=comp_stage,
+            external_effect_receipt_digest=None,
+            summary=comp_summary,
+        )
 
         summary_payload = {
             "objective_id": objective.objective_id,
@@ -1537,6 +1869,7 @@ class AutonomousMissionEngine:
             report_digest=report_digest,
             measured_telemetry=measured_telemetry,
             modeled_economics=modeled_economics,
+            completion_semantics=completion_semantics,
         )
 
     @staticmethod

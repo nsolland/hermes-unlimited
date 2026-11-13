@@ -1133,6 +1133,341 @@ class AutonomousCompanyTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "HERMES_WALL_CLOCK_BOUND_REQUIRES_MAIN_THREAD"):
                 executor.submit(worker).result()
 
+    def test_20_per_step_deadline_timeout_triggers_model_failover_and_durable_checkpoint_resume(self) -> None:
+        import time
+
+        attempted_models: list[tuple[str, int, str]] = []
+
+        def slow_on_first_research_worker(step, model_id, attempt, ctx, hints):
+            attempted_models.append((step.step_id, attempt, model_id))
+            if step.step_id == "step-2-research" and attempt == 1:
+                time.sleep(0.18)
+                return StepWorkerResult(
+                    status="ok",
+                    output={"evidence_items": ["too slow"], "baseline_metrics": {"v": 1}},
+                    latency_sec=25.0,
+                )
+            res = default_deterministic_worker(step, model_id, attempt, ctx, hints)
+            res.latency_sec = 0.02
+            return res
+
+        obj = self._objective(
+            objective_id="obj-deadline-failover",
+            policy=EconomicPolicy(
+                budget_ceiling_minor=5_000,
+                sla_seconds=60.0,
+                step_deadline_seconds=0.06,
+                max_step_attempts=3,
+            ),
+        )
+
+        # Phase A: Run first 2 steps (step-2-research times out on attempt 1, fails over to a different model on attempt 2),
+        # then interrupt after 2 completed steps and persist durable checkpoint in SQLite.
+        engine_part1 = AutonomousMissionEngine(
+            verify_identity=self.verify,
+            worker=slow_on_first_research_worker,
+            ledger_db_path=self.db_path,
+        )
+        partial = engine_part1.execute_objective(
+            provider_id="owner",
+            tenant_id="tenant-a",
+            identity="@captain",
+            objective=obj,
+            interrupt_after_steps=2,
+        )
+        self.assertEqual(partial.status, "INTERRUPTED_CHECKPOINTED")
+        self.assertEqual(partial.failures_detected, 1)
+        self.assertEqual(partial.autonomous_recoveries, 1)
+        research_receipts = [r for r in partial.step_receipts if r.step_id == "step-2-research"]
+        self.assertEqual(len(research_receipts), 2)
+        self.assertEqual(research_receipts[0].status, "runtime_error")
+        self.assertIn("STEP_DEADLINE_EXCEEDED", research_receipts[0].error_reason or "")
+        self.assertEqual(research_receipts[1].status, "completed")
+        self.assertNotEqual(research_receipts[0].model_id, research_receipts[1].model_id)
+
+        # Phase B: Simulate process restart by creating a new engine instance and resuming purely from SQLite ledger
+        engine_restarted = AutonomousMissionEngine(
+            verify_identity=self.verify,
+            worker=slow_on_first_research_worker,
+            ledger_db_path=self.db_path,
+        )
+        resumed = engine_restarted.execute_objective(
+            provider_id="owner",
+            tenant_id="tenant-a",
+            identity="@captain",
+            objective=obj,
+            resume_from_ledger=True,
+        )
+        self.assertEqual(resumed.status, "VERIFIED_COMPLETE")
+        self.assertTrue(resumed.independently_verified)
+        self.assertEqual(resumed.autonomous_recoveries, 1)
+
+    def test_21_adapter_maturity_tiers_and_per_tenant_jacket_capability_scopes(self) -> None:
+        from unlimited.adapter_gate import AdapterDenied, TenantAdapterRegistry
+
+        registry = TenantAdapterRegistry()
+        summary = registry.summary()
+        self.assertIn("justyou", summary["mandatory_adapters"])
+        self.assertIn("justyou", summary["by_tier"]["CORE"])
+        self.assertIn("customer-delivery-outbox", summary["by_tier"]["VERIFIED"])
+        self.assertIn("live-email-connector", summary["by_tier"]["EXPERIMENTAL"])
+
+        # 1. Mandatory JustYou is always active and release-eligible
+        jy_auth = registry.authorize_tenant_capability(
+            tenant_id="tenant-a",
+            adapter_id="justyou",
+            capability="identity.verify",
+        )
+        self.assertEqual(jy_auth["tier"], "CORE")
+        self.assertTrue(jy_auth["mandatory_for_all_tenants"])
+        self.assertTrue(jy_auth["release_eligible"])
+
+        # 2. EXPERIMENTAL adapters cannot be enabled or invoked in release mode
+        with self.assertRaisesRegex(AdapterDenied, "ADAPTER_NOT_RELEASE_ELIGIBLE:live-email-connector:EXPERIMENTAL"):
+            registry.configure_tenant_jackets(
+                "tenant-a",
+                optional_grants={"live-email-connector": ("email.send.external",)},
+            )
+        with self.assertRaisesRegex(AdapterDenied, "ADAPTER_NOT_RELEASE_ELIGIBLE:live-payment-settlement:EXPERIMENTAL"):
+            registry.authorize_tenant_capability(
+                tenant_id="tenant-a",
+                adapter_id="live-payment-settlement",
+                capability="payment.charge",
+            )
+
+        # 3. Per-tenant capability scope isolation
+        registry.configure_tenant_jackets(
+            "tenant-a",
+            optional_grants={"company-memory": ("memory.read",)},
+        )
+        self.assertEqual(
+            registry.authorize_tenant_capability(
+                tenant_id="tenant-a",
+                adapter_id="company-memory",
+                capability="memory.read",
+            )["capability"],
+            "memory.read",
+        )
+        with self.assertRaisesRegex(AdapterDenied, "TENANT_CAPABILITY_SCOPE_DENIED:tenant-a:company-memory:memory.write"):
+            registry.authorize_tenant_capability(
+                tenant_id="tenant-a",
+                adapter_id="company-memory",
+                capability="memory.write",
+            )
+        with self.assertRaisesRegex(AdapterDenied, "JACKET_NOT_ENABLED_FOR_TENANT:tenant-a:service-factory"):
+            registry.authorize_tenant_capability(
+                tenant_id="tenant-a",
+                adapter_id="service-factory",
+                capability="blueprint.register",
+            )
+
+    def test_22_explicit_completion_semantics_separate_self_report_from_verified_business_result(self) -> None:
+        # 1. Self-reported artifact that fails independent verification is stage="produced_artifact", NOT verified
+        rejecting_verifier = IndependentOutcomeVerifier(
+            independent_critic=lambda _o, _d, _c: {"verified": False, "reason": "unverified_claims"}
+        )
+        unverified_engine = AutonomousMissionEngine(
+            verify_identity=self.verify,
+            verifier=rejecting_verifier,
+        )
+        unverified_rep = unverified_engine.execute_objective(
+            provider_id="owner",
+            tenant_id="tenant-a",
+            identity="@captain",
+            objective=self._objective(objective_id="obj-semantics-unverified"),
+        )
+        self.assertEqual(unverified_rep.status, "STOPPED_UNVERIFIED_OUTCOME")
+        self.assertTrue(unverified_rep.completion_semantics.produced_artifact)
+        self.assertFalse(unverified_rep.completion_semantics.verified_artifact)
+        self.assertFalse(unverified_rep.completion_semantics.authorized_external_effect)
+        self.assertFalse(unverified_rep.completion_semantics.measured_business_result)
+        self.assertEqual(unverified_rep.completion_semantics.stage, "produced_artifact")
+
+        # 2. Independently verified positive-EV mission reaches measured_business_result while keeping external effect False until authorized
+        verified_engine = AutonomousMissionEngine(verify_identity=self.verify)
+        verified_rep = verified_engine.execute_objective(
+            provider_id="owner",
+            tenant_id="tenant-a",
+            identity="@captain",
+            objective=self._objective(objective_id="obj-semantics-verified"),
+        )
+        self.assertEqual(verified_rep.status, "VERIFIED_COMPLETE")
+        self.assertTrue(verified_rep.completion_semantics.produced_artifact)
+        self.assertTrue(verified_rep.completion_semantics.verified_artifact)
+        self.assertFalse(verified_rep.completion_semantics.authorized_external_effect)
+        self.assertTrue(verified_rep.completion_semantics.measured_business_result)
+        self.assertEqual(verified_rep.completion_semantics.stage, "measured_business_result")
+
+    def test_23_authorized_customer_delivery_channel_and_complete_vertical_slice(self) -> None:
+        from unlimited.adapter_gate import AdapterDenied
+        from unlimited.a2ui_adapter import mission_surface, readiness_surface
+        from unlimited.company_os import (
+            AuthorizedCustomerDeliveryChannel,
+            AutonomousCompanyOperatingSystem,
+            CompanyCharter,
+        )
+
+        charter = CompanyCharter(
+            company_id="valocorp",
+            display_name="Valo Corp Autonomous Ops",
+            mission_statement="Autonomous FinOps, Revenue Operations, and SLA Governance for Nordic B2B SaaS",
+            strategic_domains=("finops", "revenue", "billing", "sla", "security"),
+            forbidden_domains=("cryptocurrency_trading", "unlicensed_legal"),
+            max_autonomous_budget_minor=6_000,
+            owner_approval_threshold_minor=5_000,
+            min_roi_hurdle_ratio=0.30,
+        )
+        cand_optimal = self._objective(
+            objective_id="cand-vertical-slice",
+            title="Valo Corp Autonomous Revenue & SLA Assurance Delivery",
+            target_value_minor=4_800,
+            policy=EconomicPolicy(budget_ceiling_minor=4_500),
+        )
+
+        company_os = AutonomousCompanyOperatingSystem(
+            database=self.db_path,
+            verify_identity=self.verify,
+        )
+        cycle = company_os.run_operating_cycle(
+            provider_id="owner",
+            tenant_id="tenant-a",
+            identity="@captain",
+            charter=charter,
+            candidate_objectives=(cand_optimal,),
+            auto_productize_services=True,
+            deliver_to_customer_id="cust-nordic-bank-01",
+            authorize_external_delivery=True,
+        )
+
+        # Verify full vertical slice: Charter -> Triage -> Crew -> Verification -> CAVO -> Memory -> Blueprint -> Customer Delivery -> Captain's Bridge
+        self.assertEqual(cycle.objectives_verified, 1)
+        self.assertEqual(len(cycle.harvested_memory_ids), 1)
+        self.assertEqual(len(cycle.minted_blueprints), 1)
+        self.assertEqual(len(cycle.customer_deliveries), 1)
+        dlv = cycle.customer_deliveries[0]
+        self.assertEqual(dlv.customer_id, "cust-nordic-bank-01")
+        self.assertTrue(dlv.external_effect_authorized)
+        self.assertEqual(dlv.verifier_seal, cycle.mission_reports[0].verification.verifier_seal)
+
+        rep = cycle.mission_reports[0]
+        self.assertTrue(rep.completion_semantics.produced_artifact)
+        self.assertTrue(rep.completion_semantics.verified_artifact)
+        self.assertTrue(rep.completion_semantics.authorized_external_effect)
+        self.assertTrue(rep.completion_semantics.measured_business_result)
+        self.assertEqual(rep.completion_semantics.external_effect_receipt_digest, dlv.receipt_digest)
+
+        # Idempotent replay to the same customer returns identical delivery receipt without error
+        dlv_replay = company_os.delivery_channel.deliver_verified_service(
+            provider_id="owner",
+            tenant_id="tenant-a",
+            company_id="valocorp",
+            identity="@captain",
+            customer_id="cust-nordic-bank-01",
+            service_id=dlv.service_id,
+            report=rep,
+            authorize_external_effect=True,
+        )
+        self.assertEqual(dlv_replay.delivery_id, dlv.delivery_id)
+        self.assertEqual(
+            len(company_os.delivery_channel.list_deliveries("owner", "tenant-a", "valocorp", "@captain")),
+            1,
+        )
+
+        # Negative tests: unauthorized external effect or unapproved channel is blocked fail-closed
+        with self.assertRaisesRegex(PermissionError, "EXTERNAL_CUSTOMER_EFFECT_NOT_AUTHORIZED"):
+            company_os.delivery_channel.deliver_verified_service(
+                provider_id="owner",
+                tenant_id="tenant-a",
+                company_id="valocorp",
+                identity="@captain",
+                customer_id="cust-2",
+                service_id=dlv.service_id,
+                report=rep,
+                authorize_external_effect=False,
+            )
+        with self.assertRaisesRegex(AdapterDenied, "UNAPPROVED_EXTERNAL_CHANNEL:smtp_raw"):
+            company_os.delivery_channel.deliver_verified_service(
+                provider_id="owner",
+                tenant_id="tenant-a",
+                company_id="valocorp",
+                identity="@captain",
+                customer_id="cust-2",
+                service_id=dlv.service_id,
+                report=rep,
+                authorize_external_effect=True,
+                channel="smtp_raw",
+            )
+
+        # Captain's Bridge A2UI surfaces reflect the verified mission and readiness state
+        m_surf = mission_surface(
+            company_os.store, "owner", "tenant-a", "valocorp", "@captain", surface_id="vertical_missions"
+        )
+        r_surf = readiness_surface(
+            company_os.store, "owner", "tenant-a", "@captain", surface_id="vertical_readiness"
+        )
+        self.assertIn("cand-vertical-slice", json.dumps(m_surf))
+        self.assertIn("VERIFIED_CORE", json.dumps(r_surf))
+
+    def test_24_live_worker_sanitizes_incidental_placeholders_across_all_steps_and_circuit_breaker(self) -> None:
+        from unlimited.autonomy import ObjectiveDecomposer
+        from unlimited.economics import LIVE_NOUS_ALIBABA_MODEL_CATALOG
+        from unlimited.hermes_live_worker import HermesLiveWorkerAdapter, ProviderCircuitBreaker, ensure_hermes_runtime_loaded
+        from unittest.mock import patch
+
+        obj = self._objective(objective_id="obj-sanitize-all-steps")
+        steps = {s.step_id: s for s in ObjectiveDecomposer.decompose(obj)}
+
+        with patch("unlimited.hermes_live_worker.ensure_hermes_runtime_loaded", return_value=ROOT):
+            worker = HermesLiveWorkerAdapter(
+                catalog=LIVE_NOUS_ALIBABA_MODEL_CATALOG,
+                excluded_providers=("gemini",),
+            )
+
+        # 1. Gemini is excluded from catalog and tripped in circuit breaker
+        self.assertTrue(all(p.provider_id in ("nous", "alibaba") for p in LIVE_NOUS_ALIBABA_MODEL_CATALOG))
+        self.assertTrue(worker.circuit_breaker.is_tripped("gemini"))
+        self.assertFalse(worker.circuit_breaker.is_tripped("nous"))
+
+        # 2. Incidental prose words ('placeholder', 'TODO', 'TBD') in research and critique outputs are sanitized
+        ctx = {
+            "company_id": "valocorp",
+            "objective_title": obj.title,
+            "currency": "NOK",
+            "target_value_minor": 4000,
+            "required_deliverables": obj.required_deliverables,
+        }
+        norm_research = worker._normalize_step_output(
+            steps["step-2-research"],
+            {
+                "evidence_items": [
+                    "Inspected runtime.py: verified no placeholder values or TODO markers remain in SQL queries."
+                ],
+                "baseline_metrics": {"target_value_minor": 4000, "currency": "NOK", "notes": "TBD items scheduled"},
+            },
+            ctx,
+        )
+        res_research = StepWorkerResult(status="ok", output=norm_research)
+        self.assertIsNone(AutonomousMissionEngine._validate_step_output(steps["step-2-research"], res_research, obj))
+
+        norm_critique = worker._normalize_step_output(
+            steps["step-4-critique"],
+            {
+                "audit_passed": True,
+                "challenged_assumptions": [
+                    "Confirmed zero placeholder text or FIXME items exist in deliverables."
+                ],
+                "verified_keys": list(obj.required_deliverables),
+            },
+            ctx,
+        )
+        res_critique = StepWorkerResult(status="ok", output=norm_critique)
+        self.assertIsNone(AutonomousMissionEngine._validate_step_output(steps["step-4-critique"], res_critique, obj))
+
+        # 3. Circuit breaker trips provider on 429 quota error
+        breaker = ProviderCircuitBreaker()
+        breaker.record_failure("gemini", "HTTP 429 rate limit / quota exhausted")
+        self.assertTrue(breaker.is_tripped("gemini"))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -40,12 +40,14 @@ from unlimited.autonomy import (
 )
 from unlimited.company_os import (
     PRODUCT_READINESS_MATRIX,
+    AuthorizedCustomerDeliveryChannel,
     CAVOOpportunityAllocator,
     CompanyCharter,
     GoalFidelityEvaluator,
 )
 from unlimited.economics import (
     LIVE_HERMES_MODEL_CATALOG,
+    LIVE_NOUS_ALIBABA_MODEL_CATALOG,
     EconomicIntelligenceEngine,
     EconomicPolicy,
     RoutingStrategy,
@@ -53,6 +55,7 @@ from unlimited.economics import (
 from unlimited.hermes_live_worker import (
     HermesLiveIndependentCritic,
     HermesLiveWorkerAdapter,
+    ProviderCircuitBreaker,
     ensure_hermes_runtime_loaded,
 )
 from unlimited.justyou import JustYouVerifier
@@ -61,15 +64,23 @@ from unlimited.runtime import ProviderStore, UnverifiedIdentity
 
 DEFAULT_EVIDENCE_PATH = REPO_ROOT / "docs" / "live_acceptance_evidence_20261112.json"
 
-# Optional provider selection for bounded acceptance when a provider has exhausted quota.
-# Does not alter production routing and never disables independent verification.
+# Default to Nous + Alibaba catalog when Gemini free-tier quota is exhausted,
+# or honor explicit HERMES_LIVE_ACCEPTANCE_PROVIDERS.
 if os.environ.get("HERMES_LIVE_ACCEPTANCE_PROVIDERS"):
-    allowed_providers = {v.strip().lower() for v in os.environ["HERMES_LIVE_ACCEPTANCE_PROVIDERS"].split(",") if v.strip()}
+    allowed_providers = {
+        v.strip().lower()
+        for v in os.environ["HERMES_LIVE_ACCEPTANCE_PROVIDERS"].split(",")
+        if v.strip()
+    }
     LIVE_HERMES_MODEL_CATALOG = tuple(
-        profile for profile in LIVE_HERMES_MODEL_CATALOG if profile.provider_id.lower() in allowed_providers
+        profile
+        for profile in LIVE_HERMES_MODEL_CATALOG
+        if profile.provider_id.lower() in allowed_providers
     )
     if not LIVE_HERMES_MODEL_CATALOG:
         raise RuntimeError("LIVE_ACCEPTANCE_NO_MODELS_FOR_SELECTED_PROVIDERS")
+else:
+    LIVE_HERMES_MODEL_CATALOG = LIVE_NOUS_ALIBABA_MODEL_CATALOG
 
 
 def check_network_available(host: str = "inference-api.nousresearch.com", port: int = 443) -> bool:
@@ -324,7 +335,8 @@ def run_live_acceptance_suite(output_path: str | Path | None = DEFAULT_EVIDENCE_
         # Verify JustYou & security boundaries first
         justyou_results = _verify_justyou_boundaries(store, memory, factory)
 
-        shared_critic = HermesLiveIndependentCritic()
+        shared_breaker = ProviderCircuitBreaker(excluded_providers=("gemini",))
+        shared_critic = HermesLiveIndependentCritic(circuit_breaker=shared_breaker)
         verifier_with_critic = IndependentOutcomeVerifier(independent_critic=shared_critic)
 
         # =====================================================================
@@ -355,7 +367,8 @@ def run_live_acceptance_suite(output_path: str | Path | None = DEFAULT_EVIDENCE_
             policy=EconomicPolicy(
                 currency="NOK",
                 budget_ceiling_minor=5_000,
-                sla_seconds=300.0,
+                sla_seconds=240.0,
+                step_deadline_seconds=30.0,
                 max_step_attempts=3,
             ),
         )
@@ -363,6 +376,7 @@ def run_live_acceptance_suite(output_path: str | Path | None = DEFAULT_EVIDENCE_
             catalog=LIVE_HERMES_MODEL_CATALOG,
             workspace_dir=workspace_dir,
             enabled_toolsets=["file"],
+            circuit_breaker=shared_breaker,
         )
         econ1 = EconomicIntelligenceEngine(models=LIVE_HERMES_MODEL_CATALOG, policy=obj1.policy)
         engine1 = AutonomousMissionEngine(
@@ -433,7 +447,8 @@ def run_live_acceptance_suite(output_path: str | Path | None = DEFAULT_EVIDENCE_
             policy=EconomicPolicy(
                 currency="NOK",
                 budget_ceiling_minor=6_000,
-                sla_seconds=300.0,
+                sla_seconds=240.0,
+                step_deadline_seconds=30.0,
                 max_step_attempts=3,
             ),
         )
@@ -451,6 +466,7 @@ def run_live_acceptance_suite(output_path: str | Path | None = DEFAULT_EVIDENCE_
             catalog=LIVE_HERMES_MODEL_CATALOG,
             workspace_dir=workspace_dir,
             enabled_toolsets=["file"],
+            circuit_breaker=shared_breaker,
         )
         econ2 = EconomicIntelligenceEngine(models=LIVE_HERMES_MODEL_CATALOG, policy=obj2.policy)
         engine2_part1 = AutonomousMissionEngine(
@@ -459,8 +475,9 @@ def run_live_acceptance_suite(output_path: str | Path | None = DEFAULT_EVIDENCE_
             routing_strategy="outcome_driven",
             worker=worker2,
             verifier=verifier_with_critic,
+            ledger_db_path=db_path,
         )
-        # Phase 2A: Execute first 2 steps live and checkpoint
+        # Phase 2A: Execute first 2 steps live and persist durable SQLite checkpoint
         partial2 = engine2_part1.execute_objective(
             provider_id="owner",
             tenant_id="tenant-a",
@@ -471,7 +488,7 @@ def run_live_acceptance_suite(output_path: str | Path | None = DEFAULT_EVIDENCE_
         )
         checkpoint_json = json.loads(json.dumps(partial2.as_dict()["checkpoint_state"]))
 
-        # Phase 2B: Resume from checkpoint on a fresh engine instance (with durable SQLite ledger)
+        # Phase 2B: Resume from durable SQLite ledger on a fresh engine instance (simulating process restart)
         engine2_resume = AutonomousMissionEngine(
             verify_identity=verify_identity,
             economic_engine=econ2,
@@ -487,6 +504,7 @@ def run_live_acceptance_suite(output_path: str | Path | None = DEFAULT_EVIDENCE_
             objective=obj2,
             memory_lessons=recalled_lessons,
             checkpoint=checkpoint_json,
+            resume_from_ledger=True,
         )
         store.record_mission("owner", "tenant-a", "valocorp", {**report2.as_dict(), "title": obj2.title}, "@captain")
         if not report2.independently_verified:
@@ -559,7 +577,8 @@ def run_live_acceptance_suite(output_path: str | Path | None = DEFAULT_EVIDENCE_
             policy=EconomicPolicy(
                 currency="NOK",
                 budget_ceiling_minor=6_500,
-                sla_seconds=300.0,
+                sla_seconds=240.0,
+                step_deadline_seconds=30.0,
                 max_step_attempts=3,
             ),
         )
@@ -576,6 +595,7 @@ def run_live_acceptance_suite(output_path: str | Path | None = DEFAULT_EVIDENCE_
             catalog=LIVE_HERMES_MODEL_CATALOG,
             workspace_dir=workspace_dir,
             enabled_toolsets=["file"],
+            circuit_breaker=shared_breaker,
             route_overrides={
                 ("step-1-triage", 1): ("openrouter", "openai/gpt-5.4-mini"),
                 ("step-2-research", 1): ("alibaba-coding-plan", "qwen3.5-plus"),
@@ -637,11 +657,15 @@ def run_live_acceptance_suite(output_path: str | Path | None = DEFAULT_EVIDENCE_
                 policy=EconomicPolicy(
                     currency="NOK",
                     budget_ceiling_minor=5_000,
-                    sla_seconds=300.0,
+                    sla_seconds=240.0,
+                    step_deadline_seconds=30.0,
                     max_step_attempts=3,
                 ),
             )
-            w_strat = HermesLiveWorkerAdapter(catalog=LIVE_HERMES_MODEL_CATALOG)
+            w_strat = HermesLiveWorkerAdapter(
+                catalog=LIVE_HERMES_MODEL_CATALOG,
+                circuit_breaker=shared_breaker,
+            )
             econ_strat = EconomicIntelligenceEngine(
                 models=LIVE_HERMES_MODEL_CATALOG,
                 policy=bench_obj.policy,

@@ -13,13 +13,17 @@ from __future__ import annotations
 
 import hashlib
 import json
+import sqlite3
+import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Literal, Mapping, Sequence
 
+from .adapter_gate import AdapterDenied, TenantAdapterRegistry
 from .autonomy import (
     AutonomousMissionEngine,
     BusinessObjective,
+    CompletionSemanticsReport,
     IndependentOutcomeVerifier,
     MissionExecutionReport,
     ObjectiveDecomposer,
@@ -149,9 +153,237 @@ class SixQuestionAssessment:
     q6_published_service_id: str | None
     q6_recommended_price_minor: int | None
     q6_next_improvement_recommendation: str
+    q6_customer_delivery_id: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+@dataclass(frozen=True)
+class CustomerDeliveryReceipt:
+    """Signed transactional customer communication and service delivery receipt."""
+
+    delivery_id: str
+    provider_id: str
+    tenant_id: str
+    company_id: str
+    objective_id: str
+    service_id: str
+    customer_id: str
+    channel: str
+    authorized_by_identity: str
+    external_effect_authorized: bool
+    deliverable_digest: str
+    verifier_seal: str
+    message_subject: str
+    message_body: str
+    receipt_digest: str
+    created_at: float
+
+    def as_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+class AuthorizedCustomerDeliveryChannel:
+    """Transactional customer communication and service delivery channel with strict authorization.
+
+    Enforces:
+    1. Mandatory JustYou identity & tenant boundary verification.
+    2. `TenantAdapterRegistry` capability check (`customer-delivery-outbox` -> `customer.communicate`).
+    3. Explicit external-effect authorization (`authorize_external_effect=True`).
+    4. Cryptographic `IndependentOutcomeVerifier` seal verification + anti-replay check.
+    5. Durable SQLite transactional outbox idempotency (prevents duplicate customer dispatches).
+    Never sends unapproved real external emails or financial charges.
+    """
+
+    def __init__(
+        self,
+        database: str | Path,
+        verify_identity: Callable[[str, str, str], bool],
+        *,
+        verifier: IndependentOutcomeVerifier,
+        adapter_registry: TenantAdapterRegistry | None = None,
+    ) -> None:
+        if not callable(verify_identity):
+            raise TypeError("Trusted JustYou identity verifier required")
+        self.database = str(database)
+        self.verify_identity = verify_identity
+        self.verifier = verifier
+        self.adapter_registry = adapter_registry or TenantAdapterRegistry()
+        self._init_db()
+
+    def _init_db(self) -> None:
+        Path(self.database).parent.mkdir(parents=True, exist_ok=True)
+        with sqlite3.connect(self.database, timeout=10) as db:
+            db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS customer_delivery_outbox (
+                    delivery_key TEXT PRIMARY KEY,
+                    delivery_id TEXT NOT NULL,
+                    provider_id TEXT NOT NULL,
+                    tenant_id TEXT NOT NULL,
+                    company_id TEXT NOT NULL,
+                    objective_id TEXT NOT NULL,
+                    customer_id TEXT NOT NULL,
+                    receipt_json TEXT NOT NULL
+                )
+                """
+            )
+
+    def deliver_verified_service(
+        self,
+        *,
+        provider_id: str,
+        tenant_id: str,
+        company_id: str,
+        identity: str,
+        customer_id: str,
+        service_id: str,
+        report: MissionExecutionReport,
+        authorize_external_effect: bool,
+        channel: str = "transactional_outbox",
+    ) -> CustomerDeliveryReceipt:
+        if not provider_id or not tenant_id or not company_id or not identity or not customer_id:
+            raise UnverifiedIdentity("CUSTOMER_DELIVERY_SCOPE_REQUIRED")
+        if self.verify_identity(provider_id, tenant_id, identity) is not True:
+            raise UnverifiedIdentity("JUSTYOU_IDENTITY_NOT_VERIFIED")
+        if authorize_external_effect is not True:
+            raise PermissionError("EXTERNAL_CUSTOMER_EFFECT_NOT_AUTHORIZED")
+        if channel not in ("transactional_outbox", "captains_bridge_portal"):
+            raise AdapterDenied(f"UNAPPROVED_EXTERNAL_CHANNEL:{channel}")
+
+        # Verify Jacket maturity & per-tenant capability scopes
+        self.adapter_registry.authorize_tenant_capability(
+            tenant_id=tenant_id,
+            adapter_id="justyou",
+            capability="identity.verify",
+        )
+        self.adapter_registry.authorize_tenant_capability(
+            tenant_id=tenant_id,
+            adapter_id="customer-delivery-outbox",
+            capability="customer.communicate",
+        )
+        self.adapter_registry.authorize_tenant_capability(
+            tenant_id=tenant_id,
+            adapter_id="customer-delivery-outbox",
+            capability="delivery.receipt.issue",
+        )
+
+        if report.tenant_id != tenant_id or report.company_id != company_id:
+            raise PermissionError("REPORT_SCOPE_MISMATCH")
+        if not report.independently_verified:
+            raise PermissionError("UNVERIFIED_OUTCOME_CANNOT_BE_DELIVERED_TO_CUSTOMER")
+
+        # Idempotency check before consuming anti-replay seal
+        delivery_key = f"{provider_id}:{tenant_id}:{company_id}:{report.objective_id}:{customer_id}"
+        with sqlite3.connect(self.database, timeout=10) as db:
+            existing = db.execute(
+                "SELECT receipt_json FROM customer_delivery_outbox WHERE delivery_key=?",
+                (delivery_key,),
+            ).fetchone()
+        if existing:
+            return CustomerDeliveryReceipt(**json.loads(existing[0]))
+
+        if not self.verifier.verify_receipt_authenticity(
+            report.verification,
+            deliverables=report.deliverables,
+            expected_tenant_id=tenant_id,
+            expected_company_id=company_id,
+            expected_objective_id=report.objective_id,
+            reject_replay=True,
+            consumer_scope=f"customer_delivery:{tenant_id}:{company_id}:{customer_id}",
+        ):
+            raise PermissionError("FORGED_OR_REPLAYED_VERIFICATION_RECEIPT")
+
+        exec_summary = str(
+            report.deliverables.get("executive_summary")
+            or next(iter(report.deliverables.values()), "Verified service package")
+        )
+        subject = f"[{company_id}] Verified Service Delivery: {service_id} ({report.objective_id})"
+        body = (
+            f"Customer: {customer_id}\n"
+            f"Service: {service_id}\n"
+            f"Objective: {report.objective_id}\n"
+            f"Verification Seal: {report.verification.verifier_seal}\n"
+            f"Summary: {exec_summary}"
+        )
+        created_at = round(time.time(), 3)
+        delivery_id = "dlv-" + hashlib.sha256(delivery_key.encode("utf-8")).hexdigest()[:16]
+        digest_payload = {
+            "delivery_id": delivery_id,
+            "provider_id": provider_id,
+            "tenant_id": tenant_id,
+            "company_id": company_id,
+            "objective_id": report.objective_id,
+            "service_id": service_id,
+            "customer_id": customer_id,
+            "channel": channel,
+            "authorized_by_identity": identity,
+            "deliverable_digest": report.verification.deliverable_digest,
+            "verifier_seal": report.verification.verifier_seal,
+        }
+        receipt_digest = hashlib.sha256(
+            json.dumps(digest_payload, sort_keys=True).encode("utf-8")
+        ).hexdigest()
+
+        receipt = CustomerDeliveryReceipt(
+            delivery_id=delivery_id,
+            provider_id=provider_id,
+            tenant_id=tenant_id,
+            company_id=company_id,
+            objective_id=report.objective_id,
+            service_id=service_id,
+            customer_id=customer_id,
+            channel=channel,
+            authorized_by_identity=identity,
+            external_effect_authorized=True,
+            deliverable_digest=report.verification.deliverable_digest,
+            verifier_seal=report.verification.verifier_seal,
+            message_subject=subject,
+            message_body=body,
+            receipt_digest=receipt_digest,
+            created_at=created_at,
+        )
+        with sqlite3.connect(self.database, timeout=10) as db:
+            db.execute(
+                """
+                INSERT INTO customer_delivery_outbox(
+                    delivery_key, delivery_id, provider_id, tenant_id, company_id,
+                    objective_id, customer_id, receipt_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    delivery_key,
+                    delivery_id,
+                    provider_id,
+                    tenant_id,
+                    company_id,
+                    report.objective_id,
+                    customer_id,
+                    json.dumps(receipt.as_dict(), sort_keys=True),
+                ),
+            )
+        return receipt
+
+    def list_deliveries(
+        self,
+        provider_id: str,
+        tenant_id: str,
+        company_id: str,
+        identity: str,
+    ) -> list[CustomerDeliveryReceipt]:
+        if self.verify_identity(provider_id, tenant_id, identity) is not True:
+            raise UnverifiedIdentity("JUSTYOU_IDENTITY_NOT_VERIFIED")
+        with sqlite3.connect(self.database, timeout=10) as db:
+            rows = db.execute(
+                """
+                SELECT receipt_json FROM customer_delivery_outbox
+                WHERE provider_id=? AND tenant_id=? AND company_id=?
+                ORDER BY rowid ASC
+                """,
+                (provider_id, tenant_id, company_id),
+            ).fetchall()
+        return [CustomerDeliveryReceipt(**json.loads(r[0])) for r in rows]
 
 
 @dataclass(frozen=True)
@@ -177,6 +409,7 @@ class CompanyOperatingCycleReport:
     harvested_memory_ids: tuple[str, ...]
     minted_blueprints: tuple[ServiceBlueprint, ...]
     cycle_digest: str
+    customer_deliveries: tuple[CustomerDeliveryReceipt, ...] = ()
 
     def as_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -382,6 +615,7 @@ class AutonomousCompanyOperatingSystem:
         routing_strategy: RoutingStrategy = "outcome_driven",
         worker: StepWorkerCallable = default_deterministic_worker,
         verifier: IndependentOutcomeVerifier | None = None,
+        adapter_registry: TenantAdapterRegistry | None = None,
     ) -> None:
         if not callable(verify_identity):
             raise TypeError("Trusted JustYou identity verifier required")
@@ -391,9 +625,16 @@ class AutonomousCompanyOperatingSystem:
         self.routing_strategy: RoutingStrategy = routing_strategy
         self.worker = worker
         self.verifier = verifier or IndependentOutcomeVerifier()
+        self.adapter_registry = adapter_registry or TenantAdapterRegistry()
         self.store = ProviderStore(self.database, self.verify_identity)
         self.memory = CompanyMemoryStore(self.database, self.verify_identity)
         self.factory = ServiceFactory(self.database, self.verify_identity)
+        self.delivery_channel = AuthorizedCustomerDeliveryChannel(
+            self.database,
+            self.verify_identity,
+            verifier=self.verifier,
+            adapter_registry=self.adapter_registry,
+        )
         self.mission_engine = AutonomousMissionEngine(
             verify_identity=self.verify_identity,
             economic_engine=self.economic_engine,
@@ -413,6 +654,8 @@ class AutonomousCompanyOperatingSystem:
         candidate_objectives: Sequence[BusinessObjective],
         max_objectives_to_execute: int = 1,
         auto_productize_services: bool = True,
+        deliver_to_customer_id: str | None = None,
+        authorize_external_delivery: bool = False,
     ) -> CompanyOperatingCycleReport:
         """Evaluate candidate opportunities, execute top positive-EV work, harvest memory, and mint services."""
         if not provider_id or not tenant_id or not identity:
@@ -421,6 +664,23 @@ class AutonomousCompanyOperatingSystem:
             raise UnverifiedIdentity("JUSTYOU_IDENTITY_NOT_VERIFIED")
         if not candidate_objectives:
             raise ValueError("CANDIDATE_OBJECTIVES_EMPTY")
+
+        # Configure default release-eligible Jackets for this tenant if not already configured
+        if tenant_id not in self.adapter_registry._tenant_grants:
+            self.adapter_registry.configure_tenant_jackets(
+                tenant_id,
+                optional_grants={
+                    "company-memory": ("memory.read", "memory.write", "memory.recall"),
+                    "service-factory": ("blueprint.register", "service.deliver", "sla.verify"),
+                    "customer-delivery-outbox": ("customer.communicate", "delivery.receipt.issue"),
+                    "a2ui-captains-bridge": ("bridge.read", "bridge.action.propose"),
+                },
+            )
+        self.adapter_registry.authorize_tenant_capability(
+            tenant_id=tenant_id,
+            adapter_id="justyou",
+            capability="identity.verify",
+        )
 
         # Ensure company exists in tenant registry
         existing_companies = {
@@ -493,6 +753,7 @@ class AutonomousCompanyOperatingSystem:
         mission_reports: list[MissionExecutionReport] = []
         harvested_memory_ids: list[str] = []
         minted_blueprints: list[ServiceBlueprint] = []
+        customer_deliveries: list[CustomerDeliveryReceipt] = []
         assessments: list[SixQuestionAssessment] = []
 
         for item in evaluated:
@@ -585,6 +846,7 @@ class AutonomousCompanyOperatingSystem:
             bp_id: str | None = None
             svc_id: str | None = None
             rec_price: int | None = None
+            delivery_id: str | None = None
 
             if report.independently_verified:
                 mem_res = self.memory.record_verified_outcome(
@@ -624,6 +886,44 @@ class AutonomousCompanyOperatingSystem:
                     svc_id = bp.service_id
                     rec_price = bp.recommended_price_minor
 
+                if deliver_to_customer_id and authorize_external_delivery:
+                    dlv_receipt = self.delivery_channel.deliver_verified_service(
+                        provider_id=provider_id,
+                        tenant_id=tenant_id,
+                        company_id=charter.company_id,
+                        identity=identity,
+                        customer_id=deliver_to_customer_id,
+                        service_id=svc_id or f"svc-{obj.objective_id.lower()[:32]}",
+                        report=report,
+                        authorize_external_effect=authorize_external_delivery,
+                    )
+                    customer_deliveries.append(dlv_receipt)
+                    delivery_id = dlv_receipt.delivery_id
+                    # Upgrade report completion semantics with authorized_external_effect=True
+                    upgraded_semantics = CompletionSemanticsReport(
+                        produced_artifact=report.completion_semantics.produced_artifact,
+                        verified_artifact=report.completion_semantics.verified_artifact,
+                        authorized_external_effect=True,
+                        measured_business_result=report.completion_semantics.measured_business_result,
+                        stage=(
+                            "measured_business_result"
+                            if report.completion_semantics.measured_business_result
+                            else "authorized_external_effect"
+                        ),
+                        external_effect_receipt_digest=dlv_receipt.receipt_digest,
+                        summary=(
+                            f"Independently verified outcome delivered via authorized channel "
+                            f"({dlv_receipt.delivery_id}) with measured net value {report.net_economic_value_minor} {obj.currency}."
+                        ),
+                    )
+                    report = MissionExecutionReport(
+                        **{
+                            **{k: getattr(report, k) for k in report.__dataclass_fields__ if k != "completion_semantics"},
+                            "completion_semantics": upgraded_semantics,
+                        }
+                    )
+                    mission_reports[-1] = report
+
             assessments.append(
                 SixQuestionAssessment(
                     objective_id=obj.objective_id,
@@ -654,6 +954,7 @@ class AutonomousCompanyOperatingSystem:
                         if svc_id
                         else "Analyze verification failure and refine step prompts before re-allocating budget."
                     ),
+                    q6_customer_delivery_id=delivery_id,
                 )
             )
 
@@ -699,6 +1000,7 @@ class AutonomousCompanyOperatingSystem:
             harvested_memory_ids=tuple(harvested_memory_ids),
             minted_blueprints=tuple(minted_blueprints),
             cycle_digest=cycle_digest,
+            customer_deliveries=tuple(customer_deliveries),
         )
 
 

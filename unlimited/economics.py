@@ -209,6 +209,27 @@ LIVE_HERMES_MODEL_CATALOG: tuple[ModelProfile, ...] = (
         runtime_model_id="gemini-3-flash-preview",
     ),
     ModelProfile(
+        model_id="alibaba/qwen3.5-plus",
+        family="qwen-3.5",
+        tier="balanced",
+        input_cost_per_1k_minor=1.40,
+        output_cost_per_1k_minor=4.20,
+        compute_cost_per_sec_minor=0.60,
+        mean_latency_sec=5.2,
+        base_Capabilities={
+            "triage": 0.975,
+            "extraction": 0.97,
+            "verification": 0.955,
+            "implementation": 0.935,
+            "research": 0.945,
+            "architecture": 0.90,
+            "synthesis": 0.925,
+            "default": 0.93,
+        },
+        provider_id="alibaba",
+        runtime_model_id="qwen3.5-plus",
+    ),
+    ModelProfile(
         model_id="alibaba/qwen3.8-max",
         family="qwen-3.8",
         tier="frontier",
@@ -231,6 +252,33 @@ LIVE_HERMES_MODEL_CATALOG: tuple[ModelProfile, ...] = (
     ),
 )
 
+LIVE_NOUS_ALIBABA_MODEL_CATALOG: tuple[ModelProfile, ...] = tuple(
+    p for p in LIVE_HERMES_MODEL_CATALOG if p.provider_id in ("nous", "alibaba")
+)
+
+
+def filter_catalog_by_providers(
+    models: tuple[ModelProfile, ...] | list[ModelProfile] | Mapping[str, ModelProfile] | None = None,
+    *,
+    allowed_providers: tuple[str, ...] | list[str] | set[str] | None = None,
+    excluded_providers: tuple[str, ...] | list[str] | set[str] | None = None,
+) -> tuple[ModelProfile, ...]:
+    """Filter a ModelProfile catalog by allowed and/or excluded provider_ids, failing closed if empty."""
+    normalized = normalize_model_catalog(models if models is not None else LIVE_HERMES_MODEL_CATALOG)
+    allowed_set = {str(p).strip().lower() for p in allowed_providers if str(p).strip()} if allowed_providers else None
+    excluded_set = {str(p).strip().lower() for p in (excluded_providers or ()) if str(p).strip()}
+    filtered: list[ModelProfile] = []
+    for profile in normalized.values():
+        prov = (profile.provider_id or profile.model_id.split("/", 1)[0]).lower()
+        if allowed_set is not None and prov not in allowed_set:
+            continue
+        if prov in excluded_set:
+            continue
+        filtered.append(profile)
+    if not filtered:
+        raise ValueError("FILTERED_MODEL_CATALOG_EMPTY")
+    return tuple(filtered)
+
 
 @dataclass(frozen=True)
 class EconomicPolicy:
@@ -239,6 +287,7 @@ class EconomicPolicy:
     currency: str = "NOK"
     budget_ceiling_minor: int = 10_000
     sla_seconds: float = 300.0
+    step_deadline_seconds: float = 35.0
     opportunity_cost_per_min_minor: float = 15.0
     time_cost_per_min_minor: float = 10.0
     human_intervention_cost_minor: int = 2_500
@@ -254,6 +303,8 @@ class EconomicPolicy:
             raise ValueError("BUDGET_CEILING_INVALID")
         if self.sla_seconds <= 0:
             raise ValueError("SLA_SECONDS_INVALID")
+        if self.step_deadline_seconds <= 0:
+            raise ValueError("STEP_DEADLINE_SECONDS_INVALID")
         if (
             self.opportunity_cost_per_min_minor < 0
             or self.time_cost_per_min_minor < 0

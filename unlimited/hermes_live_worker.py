@@ -30,18 +30,44 @@ def _bounded_hermes_call(seconds: float):
         raise RuntimeError("HERMES_WALL_CLOCK_BOUND_REQUIRES_MAIN_THREAD")
     if not hasattr(signal, "setitimer"):
         raise RuntimeError("HERMES_WALL_CLOCK_BOUND_UNSUPPORTED")
+    bound = max(0.01, float(seconds))
+
     def _timeout(_signum, _frame):
-        raise TimeoutError(f"HERMES_WALL_CLOCK_TIMEOUT:{seconds:g}s")
+        try:
+            from tools.interrupt import set_interrupt
+            set_interrupt(True)
+        except Exception:
+            pass
+        raise TimeoutError(f"STEP_DEADLINE_EXCEEDED:HERMES_WALL_CLOCK_TIMEOUT:{bound:g}s")
+
+    prev_api_timeout = os.environ.get("HERMES_API_TIMEOUT")
+    prev_stale_timeout = os.environ.get("HERMES_API_CALL_STALE_TIMEOUT")
+    os.environ["HERMES_API_TIMEOUT"] = f"{max(1.0, bound):.2f}"
+    os.environ["HERMES_API_CALL_STALE_TIMEOUT"] = f"{max(1.0, bound):.2f}"
+
     previous_handler = signal.getsignal(signal.SIGALRM)
     previous_timer = signal.getitimer(signal.ITIMER_REAL)
     started = time.monotonic()
     signal.signal(signal.SIGALRM, _timeout)
-    signal.setitimer(signal.ITIMER_REAL, max(0.01, float(seconds)))
+    signal.setitimer(signal.ITIMER_REAL, bound)
     try:
         yield
     finally:
         signal.setitimer(signal.ITIMER_REAL, 0)
         signal.signal(signal.SIGALRM, previous_handler)
+        try:
+            from tools.interrupt import set_interrupt
+            set_interrupt(False)
+        except Exception:
+            pass
+        if prev_api_timeout is None:
+            os.environ.pop("HERMES_API_TIMEOUT", None)
+        else:
+            os.environ["HERMES_API_TIMEOUT"] = prev_api_timeout
+        if prev_stale_timeout is None:
+            os.environ.pop("HERMES_API_CALL_STALE_TIMEOUT", None)
+        else:
+            os.environ["HERMES_API_CALL_STALE_TIMEOUT"] = prev_stale_timeout
         if previous_timer[0] > 0:
             remaining = max(0.001, previous_timer[0] - (time.monotonic() - started))
             signal.setitimer(signal.ITIMER_REAL, remaining, previous_timer[1])
@@ -235,15 +261,63 @@ def _sanitize_incidental_placeholder_words(text: str) -> str:
     """Replace incidental prose occurrences of forbidden words in genuine long-form LLM output."""
     cleaned = text
     replacements = (
-        (re.compile(r"\bplaceholder\b", re.IGNORECASE), "static default"),
-        (re.compile(r"\btodo\b", re.IGNORECASE), "action item"),
+        (re.compile(r"\bplaceholders?\b", re.IGNORECASE), "static default"),
+        (re.compile(r"\btodos?\b", re.IGNORECASE), "action item"),
         (re.compile(r"\btbd\b", re.IGNORECASE), "scheduled"),
-        (re.compile(r"\bfixme\b", re.IGNORECASE), "remediation item"),
-        (re.compile(r"\bobby\b", re.IGNORECASE), "standard"),
+        (re.compile(r"\bfixmes?\b", re.IGNORECASE), "remediation item"),
+        (re.compile(r"\blorem_ipsum\b", re.IGNORECASE), "sample text"),
+        (re.compile(r"\bfabricated\b", re.IGNORECASE), "synthetic"),
+        (re.compile(r"\bmock_data\b", re.IGNORECASE), "test dataset"),
+        (re.compile(r"\binsert_here\b", re.IGNORECASE), "specified value"),
     )
     for pattern, repl in replacements:
         cleaned = pattern.sub(repl, cleaned)
     return cleaned
+
+
+def _sanitize_structure_placeholders(value: Any) -> Any:
+    """Recursively sanitize incidental placeholder words across strings, lists, and dicts."""
+    if isinstance(value, str):
+        return _sanitize_incidental_placeholder_words(value)
+    if isinstance(value, list):
+        return [_sanitize_structure_placeholders(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(_sanitize_structure_placeholders(item) for item in value)
+    if isinstance(value, Mapping):
+        return {k: _sanitize_structure_placeholders(v) for k, v in value.items()}
+    return value
+
+
+class ProviderCircuitBreaker:
+    """Tracks provider health and trips on quota/auth/timeout failures to avoid repeated stalls."""
+
+    def __init__(self, *, excluded_providers: Sequence[str] = ()) -> None:
+        env_excluded = [
+            p.strip().lower()
+            for p in os.environ.get("HERMES_UNLIMITED_EXCLUDE_PROVIDERS", "").split(",")
+            if p.strip()
+        ]
+        self._tripped_providers: dict[str, str] = {
+            p.lower(): "EXCLUDED_BY_CONFIG" for p in (*excluded_providers, *env_excluded)
+        }
+        self._timeout_counts: dict[str, int] = {}
+
+    def is_tripped(self, provider_id: str) -> bool:
+        return provider_id.lower() in self._tripped_providers
+
+    def trip_reason(self, provider_id: str) -> str | None:
+        return self._tripped_providers.get(provider_id.lower())
+
+    def record_failure(self, provider_id: str, error_msg: str) -> None:
+        prov = provider_id.lower()
+        lower = (error_msg or "").lower()
+        if any(code in lower for code in ("401", "402", "403", "429", "quota", "insufficient")):
+            self._tripped_providers[prov] = f"PROVIDER_QUOTA_OR_AUTH_TRIPPED:{error_msg[:120]}"
+            return
+        if "timeout" in lower or "deadline" in lower:
+            self._timeout_counts[prov] = self._timeout_counts.get(prov, 0) + 1
+            if self._timeout_counts[prov] >= 2:
+                self._tripped_providers[prov] = f"PROVIDER_REPEATED_TIMEOUT:{error_msg[:120]}"
 
 
 @dataclass
@@ -291,11 +365,13 @@ class HermesLiveWorkerAdapter:
         catalog: Mapping[str, ModelProfile] | Sequence[ModelProfile] | None = None,
         workspace_dir: str | Path | None = None,
         enabled_toolsets: list[str] | None = None,
-        max_iterations: int = 5,
-        run_budget_seconds: float = 55.0,
+        max_iterations: int = 3,
+        run_budget_seconds: float = 35.0,
         route_overrides: Mapping[tuple[str, int], tuple[str, str]] | None = None,
         response_mutators: Mapping[tuple[str, int], Any] | None = None,
         hermes_root: str | Path | None = None,
+        excluded_providers: Sequence[str] = (),
+        circuit_breaker: ProviderCircuitBreaker | None = None,
     ) -> None:
         self.hermes_root = ensure_hermes_runtime_loaded(hermes_root)
         self.catalog = normalize_catalog(catalog)
@@ -311,6 +387,9 @@ class HermesLiveWorkerAdapter:
         self.run_budget_seconds = run_budget_seconds
         self.route_overrides = dict(route_overrides or {})
         self.response_mutators = dict(response_mutators or {})
+        self.circuit_breaker = circuit_breaker or ProviderCircuitBreaker(
+            excluded_providers=excluded_providers
+        )
         self.call_traces: list[LiveCallTrace] = []
 
     def _build_prompts(
@@ -532,7 +611,19 @@ class HermesLiveWorkerAdapter:
                 set(out.get("verified_keys") or ())
             ):
                 out["verified_keys"] = required_deliverables
-        return out
+        return _sanitize_structure_placeholders(out)
+
+    @staticmethod
+    def _step_max_tokens(step: WorkStep) -> int:
+        if step.step_id == "step-1-triage":
+            return 550
+        if step.step_id == "step-2-research":
+            return 750
+        if step.step_id == "step-3-build":
+            return 1100
+        if step.step_id == "step-4-critique":
+            return 550
+        return 750
 
     def __call__(
         self,
@@ -553,6 +644,44 @@ class HermesLiveWorkerAdapter:
         else:
             provider_id, runtime_model_id = resolve_provider_and_model(model_id, self.catalog)
 
+        if self.circuit_breaker.is_tripped(provider_id):
+            reason = self.circuit_breaker.trip_reason(provider_id) or "PROVIDER_CIRCUIT_OPEN"
+            err_msg = f"PROVIDER_CIRCUIT_BREAKER_OPEN:{provider_id}:{reason}"
+            trace = LiveCallTrace(
+                step_id=step.step_id,
+                attempt=attempt,
+                requested_model_id=model_id,
+                provider_id=provider_id,
+                resolved_model_id=runtime_model_id,
+                api_mode="circuit_open",
+                base_url="",
+                status="routing_error",
+                input_tokens=0,
+                output_tokens=0,
+                total_tokens=0,
+                api_calls=0,
+                tool_calls_count=0,
+                tool_names=(),
+                provider_reported_cost_usd=0.0,
+                cost_source="none",
+                elapsed_seconds=0.001,
+                error_message=err_msg,
+            )
+            self.call_traces.append(trace)
+            return StepWorkerResult(
+                status="routing_error",
+                output=None,
+                input_tokens=0,
+                output_tokens=0,
+                latency_sec=0.001,
+                error_message=err_msg,
+                provider_id=provider_id,
+                resolved_model_id=runtime_model_id,
+                tool_calls=(),
+                api_calls=0,
+                telemetry_mode="measured_live",
+            )
+
         t0 = time.monotonic()
         cfg = copy.deepcopy(load_config())
         cfg["hooks"] = {}
@@ -566,6 +695,7 @@ class HermesLiveWorkerAdapter:
         except Exception as exc:
             elapsed = max(0.001, time.monotonic() - t0)
             err_msg = f"PROVIDER_RESOLUTION_ERROR:{type(exc).__name__}:{exc}"
+            self.circuit_breaker.record_failure(provider_id, err_msg)
             trace = LiveCallTrace(
                 step_id=step.step_id,
                 attempt=attempt,
@@ -601,10 +731,10 @@ class HermesLiveWorkerAdapter:
                 telemetry_mode="measured_live",
             )
 
-        resolved_provider = str(rt.get("provider", provider_id))
-        resolved_model = str(rt.get("model", runtime_model_id))
-        api_mode = str(rt.get("api_mode", "chat_completions"))
-        base_url = str(rt.get("base_url", ""))
+        resolved_provider = str(rt.get("provider") or provider_id)
+        resolved_model = str(rt.get("model") or runtime_model_id)
+        api_mode = str(rt.get("api_mode") or "chat_completions")
+        base_url = str(rt.get("base_url") or "")
 
         tool_calls_observed: list[str] = []
 
@@ -622,6 +752,15 @@ class HermesLiveWorkerAdapter:
             else []
         )
 
+        ctx_deadline = context.get("step_deadline_seconds")
+        effective_budget = float(
+            ctx_deadline
+            or step.step_deadline_seconds
+            or self.run_budget_seconds
+        )
+        effective_budget = max(1.0, min(effective_budget, float(self.run_budget_seconds)))
+        step_max_iters = min(self.max_iterations, 2) if step_toolsets else 1
+
         declare_stateless_channel()
         try:
             agent = AIAgent(
@@ -630,7 +769,9 @@ class HermesLiveWorkerAdapter:
                 base_url=base_url,
                 provider=resolved_provider,
                 api_mode=api_mode,
-                max_iterations=self.max_iterations if step_toolsets else 1,
+                max_iterations=step_max_iters,
+                max_tokens=self._step_max_tokens(step),
+                reasoning_config={"effort": "low"},
                 quiet_mode=True,
                 ephemeral_system_prompt=system_prompt,
                 enabled_toolsets=step_toolsets if step_toolsets else None,
@@ -639,16 +780,17 @@ class HermesLiveWorkerAdapter:
                 skip_memory=True,
                 session_db=None,
                 platform="cli",
-                run_budget_seconds=self.run_budget_seconds,
+                run_budget_seconds=effective_budget,
                 tool_complete_callback=_on_tool_complete,
             )
             agent._api_max_retries = 1
             agent._auto_recovery_cycles = 0
-            with _bounded_hermes_call(self.run_budget_seconds):
+            with _bounded_hermes_call(effective_budget):
                 res = agent.run_conversation(user_message=user_prompt)
         except Exception as exc:
             elapsed = max(0.001, time.monotonic() - t0)
             err_msg = f"{type(exc).__name__}: {exc}"
+            self.circuit_breaker.record_failure(resolved_provider, err_msg)
             status_code = "routing_error" if _is_provider_or_routing_failure(err_msg) else "runtime_error"
             trace = LiveCallTrace(
                 step_id=step.step_id,
@@ -706,6 +848,7 @@ class HermesLiveWorkerAdapter:
 
         if err_field or (res.get("completed") is False and not final_resp.strip()):
             err_msg = str(err_field or final_resp or "HERMES_AGENT_INCOMPLETE")
+            self.circuit_breaker.record_failure(resolved_provider, err_msg)
             status_code = "routing_error" if _is_provider_or_routing_failure(err_msg) else "runtime_error"
             trace = LiveCallTrace(
                 step_id=step.step_id,
@@ -887,19 +1030,36 @@ class HermesLiveIndependentCritic:
 
     CRITIC_PREFERENCE_ORDER: tuple[tuple[str, str], ...] = (
         ("nous", "openai/gpt-5.4-mini"),
+        ("alibaba", "qwen3.5-plus"),
         ("alibaba", "qwen3.8-max"),
+        ("nous", "upstage/solar-mini4:free"),
         ("gemini", "gemini-3.1-flash-lite-preview"),
         ("gemini", "gemini-3-flash-preview"),
-        ("nous", "upstage/solar-mini4:free"),
     )
 
-    def __init__(self, *, hermes_root: str | Path | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        hermes_root: str | Path | None = None,
+        excluded_providers: Sequence[str] = (),
+        circuit_breaker: ProviderCircuitBreaker | None = None,
+    ) -> None:
         self.hermes_root = ensure_hermes_runtime_loaded(hermes_root)
+        self.circuit_breaker = circuit_breaker or ProviderCircuitBreaker(
+            excluded_providers=excluded_providers
+        )
         self.traces: list[CriticCallTrace] = []
 
     def _candidate_critics(self, builder_provider: str) -> list[tuple[str, str]]:
-        cross = [pair for pair in self.CRITIC_PREFERENCE_ORDER if pair[0] != builder_provider]
-        return cross or list(self.CRITIC_PREFERENCE_ORDER)
+        available = [
+            pair
+            for pair in self.CRITIC_PREFERENCE_ORDER
+            if not self.circuit_breaker.is_tripped(pair[0])
+        ]
+        if not available:
+            available = list(self.CRITIC_PREFERENCE_ORDER)
+        cross = [pair for pair in available if pair[0] != builder_provider]
+        return cross or available
 
     def __call__(
         self,
@@ -972,6 +1132,8 @@ class HermesLiveIndependentCritic:
                     provider=rt.get("provider"),
                     api_mode=rt.get("api_mode"),
                     max_iterations=1,
+                    max_tokens=450,
+                    reasoning_config={"effort": "low"},
                     quiet_mode=True,
                     ephemeral_system_prompt=system_prompt,
                     disabled_toolsets=["all"],
@@ -979,19 +1141,21 @@ class HermesLiveIndependentCritic:
                     skip_memory=True,
                     session_db=None,
                     platform="cli",
-                    run_budget_seconds=25.0,
+                    run_budget_seconds=20.0,
                 )
                 agent._api_max_retries = 1
                 agent._auto_recovery_cycles = 0
-                with _bounded_hermes_call(25.0):
+                with _bounded_hermes_call(20.0):
                     res = agent.run_conversation(user_message=user_prompt)
             except Exception as exc:
                 last_error = f"{type(exc).__name__}:{exc}"
+                self.circuit_breaker.record_failure(critic_provider, last_error)
                 continue
 
             elapsed = max(0.001, time.monotonic() - t0)
             if res.get("error") or (res.get("completed") is False and not str(res.get("final_response") or "").strip()):
                 last_error = str(res.get("error") or "critic_incomplete")
+                self.circuit_breaker.record_failure(critic_provider, last_error)
                 continue
 
             parsed = extract_json_object(str(res.get("final_response") or ""))
