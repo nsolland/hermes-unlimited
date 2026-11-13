@@ -10,6 +10,7 @@ import json
 import os
 import pathlib
 import subprocess
+import sys
 import tempfile
 import threading
 import unittest
@@ -22,10 +23,29 @@ from unlimited.justyou import JustYouVerifier
 from unlimited.justyou_host import LoopbackSessionStore, load_resolver
 from unlimited.justyou_inbound import JustYouInboundBridge
 from unlimited.justyou_durable_inbox import DurableInboundInbox
+from unlimited.justyou_hermes_sink import HermesInboundSink
 from unlimited.justyou_webhook import HMACWebhookIngress
 import hashlib
 import hmac
 
+
+
+CRASH_CHILD_CODE = """
+import json, os, sys
+from unlimited.justyou_durable_inbox import DurableInboundInbox
+from unlimited.justyou_hermes_sink import HermesInboundSink
+from unlimited.hermes_kanban import HermesKanban
+p=json.loads(sys.argv[1])
+sink=HermesInboundSink(
+    HermesKanban(hermes=p["hermes"],board=p["board"]),
+    p["tenant"],p["assignee"],p["identity"])
+def crash_after_effect(delivery):
+    sink(delivery)
+    os._exit(73)
+inbox=DurableInboundInbox(p["db"],crash_after_effect)
+inbox.recover()
+os._exit(74)
+"""
 
 @unittest.skipUnless(os.environ.get("HERMES_UNLIMITED_LIVE_KANBAN") == "1",
                      "set HERMES_UNLIMITED_LIVE_KANBAN=1 to run against real Hermes")
@@ -212,9 +232,53 @@ class LiveInboundToHermesAcceptance(unittest.TestCase):
                     task_id=webhook_tasks[0]["task_id"])
                 self.assertTrue(observed_webhook["found"], observed_webhook)
                 restarted.close()
+                # Crash actual child process after native Hermes task creation
+                # but before SQLite acknowledgement; verify one task on retry.
+                from unlimited.justyou_inbound import AcceptedInbound
+                crash_message = AcceptedInbound(
+                    sender=sender, recipient=recipient,
+                    message_id="crash-1", proof_ref="signed-proof",
+                    text="Crash recovery effect")
+                crash_db = str(state / "crash-inbox.sqlite")
+                def pending_only(_delivery):
+                    raise RuntimeError("persist pending before crash")
+                pending = DurableInboundInbox(crash_db, pending_only)
+                with self.assertRaises(RuntimeError):
+                    pending.accept(channel="dev-provider",
+                                   endpoint="provider:test-supplier",
+                                   message=crash_message)
+                crash_key = pending._key("dev-provider",
+                                         "provider:test-supplier", "crash-1")
+                self.assertEqual(pending.status(crash_key), "pending")
+                pending.close()
+                crash_code = CRASH_CHILD_CODE
+                crash_args = dict(hermes=hermes, board=board,
+                                  tenant=tenant, assignee=profile,
+                                  identity=identity_evidence, db=crash_db)
+                crashed = subprocess.run(
+                    [sys.executable, "-c", crash_code,
+                     json.dumps(crash_args)],
+                    capture_output=True, text=True, timeout=90)
+                self.assertEqual(crashed.returncode, 73,
+                                 crashed.stderr + crashed.stdout)
+                stable_sink = HermesInboundSink(
+                    kanban, tenant, profile, identity_evidence)
+                recovered_crash = DurableInboundInbox(crash_db, stable_sink)
+                self.assertEqual(recovered_crash.status(crash_key), "pending")
+                self.assertEqual(recovered_crash.recover(), 1)
+                self.assertEqual(recovered_crash.status(crash_key), "delivered")
+                self.assertEqual(recovered_crash.recover(), 0)
+                observed_after_crash = kanban._invoke(
+                    ["list", "--tenant", tenant, "--json"])
+                matching = [item for item in observed_after_crash
+                            if item.get("tenant") == tenant
+                            and item.get("title") == "Verified inbound: crash-1"]
+                self.assertEqual(len(matching), 1, matching)
+                recovered_crash.close()
                 print(json.dumps({
                     "live_inbound": "PASS", "signed_session": "PASS",
                     "durable_webhook_to_real_hermes": "PASS",
+                    "crash_after_effect_recovery": "PASS",
                     "real_hermes_kanban": "PASS", "duplicate": "BLOCKED",
                     "invalid_origins": "BLOCKED",
                     "external_provider": "NOT_TESTED",

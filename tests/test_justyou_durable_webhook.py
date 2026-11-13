@@ -149,6 +149,30 @@ class DurableWebhookTests(unittest.TestCase):
         self.assertEqual(failures, [])
         self.assertEqual(len(self.delivered), 1)
 
+    def test_credential_rotation_and_revocation(self):
+        registry = HMACWebhookIngress(
+            credentials={"old": self.secret}, channel="test-hmac",
+            endpoint="supplier:1", frontdoor=self.frontdoor,
+            inbox=self.inbox, clock=lambda: 1700000000)
+        body = json.dumps(self.payload).encode()
+        def signed(secret):
+            return hmac.new(secret, b"1700000000." + body,
+                            hashlib.sha256).hexdigest()
+        registry.receive(body=body, timestamp="1700000000",
+                         signature_hex=signed(self.secret), key_id="old")
+        new_secret = b"n" * 32
+        registry.rotate_credentials({"old": self.secret, "new": new_secret})
+        registry.receive(body=body, timestamp="1700000000",
+                         signature_hex=signed(new_secret), key_id="new")
+        registry.rotate_credentials({"new": new_secret})
+        with self.assertRaises(PermissionError):
+            registry.receive(body=body, timestamp="1700000000",
+                             signature_hex=signed(self.secret), key_id="old")
+        with self.assertRaises(PermissionError):
+            registry.receive(body=body, timestamp="1700000000",
+                             signature_hex=signed(self.secret), key_id="new")
+        self.assertEqual(len(self.delivered), 1)
+
     def test_rejects_malformed_requests(self):
         for body in (b"{}", b"not-json", b"[]", b""):
             sig = hmac.new(self.secret, b"1700000000." + body,

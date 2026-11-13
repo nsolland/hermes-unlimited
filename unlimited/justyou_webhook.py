@@ -9,18 +9,31 @@ import hashlib
 import hmac
 import json
 import time
-from typing import Callable
+from typing import Callable, Mapping
 
 from .justyou_durable_inbox import DurableInboundInbox, Delivery
 
 
 class HMACWebhookIngress:
-    def __init__(self, *, secret: bytes, channel: str, endpoint: str,
+    def __init__(self, *, secret: bytes | None = None,
+                 credentials: Mapping[str, bytes] | None = None,
+                 channel: str, endpoint: str,
                  frontdoor, inbox: DurableInboundInbox,
                  max_skew_seconds: int = 300,
                  clock: Callable[[], float] = time.time):
-        if not isinstance(secret, bytes) or len(secret) < 32:
-            raise ValueError("strong HMAC secret required")
+        if (secret is None) == (credentials is None):
+            raise ValueError("provide exactly one credential source")
+        if credentials is not None:
+            if (not isinstance(credentials, Mapping) or not credentials or
+                any(not isinstance(k, str) or not k or
+                    not isinstance(v, bytes) or len(v) < 32
+                    for k, v in credentials.items())):
+                raise ValueError("invalid credential registry")
+            keys = dict(credentials)
+        else:
+            if not isinstance(secret, bytes) or len(secret) < 32:
+                raise ValueError("strong HMAC secret required")
+            keys = {"default": secret}
         if not isinstance(channel, str) or not channel.strip():
             raise ValueError("channel required")
         if not isinstance(endpoint, str) or not endpoint.strip():
@@ -31,7 +44,7 @@ class HMACWebhookIngress:
             raise TypeError("durable inbox required")
         if not 1 <= max_skew_seconds <= 900:
             raise ValueError("invalid timestamp window")
-        self._secret = secret
+        self._credentials = keys
         self._channel = channel
         self._endpoint = endpoint
         self._frontdoor = frontdoor
@@ -39,8 +52,17 @@ class HMACWebhookIngress:
         self._skew = max_skew_seconds
         self._clock = clock
 
+    def rotate_credentials(self, credentials: Mapping[str, bytes]) -> None:
+        """Replace allowlist atomically. Removed key IDs are revoked."""
+        if (not isinstance(credentials, Mapping) or not credentials or
+            any(not isinstance(k, str) or not k or
+                not isinstance(v, bytes) or len(v) < 32
+                for k, v in credentials.items())):
+            raise ValueError("invalid credential registry")
+        self._credentials = dict(credentials)
+
     def receive(self, *, body: bytes, timestamp: str,
-                signature_hex: str) -> Delivery:
+                signature_hex: str, key_id: str = "default") -> Delivery:
         if not isinstance(body, bytes) or not 0 < len(body) <= 65536:
             raise ValueError("invalid request body")
         if not isinstance(timestamp, str) or not timestamp.isascii() or (
@@ -51,8 +73,11 @@ class HMACWebhookIngress:
             raise PermissionError("expired webhook")
         if not isinstance(signature_hex, str) or len(signature_hex) != 64:
             raise PermissionError("invalid signature")
+        secret = self._credentials.get(key_id) if isinstance(key_id, str) else None
+        if secret is None:
+            raise PermissionError("unknown or revoked signing key")
         signed = timestamp.encode() + b"." + body
-        expected = hmac.new(self._secret, signed, hashlib.sha256).hexdigest()
+        expected = hmac.new(secret, signed, hashlib.sha256).hexdigest()
         if not hmac.compare_digest(expected, signature_hex):
             raise PermissionError("webhook signature mismatch")
         try:
