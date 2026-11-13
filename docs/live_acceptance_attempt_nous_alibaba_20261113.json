@@ -1,0 +1,25 @@
+{
+  "schema": "hermes_unlimited_live_acceptance_attempt_v1",
+  "captured_at_utc": "2026-11-13T06:59:44.951648+00:00",
+  "source_worktree": "/home/njaal/hermes-unlimited-agy-autonomous-20261112",
+  "canonical_private_dev": "nsolland/hermes-unlimited-dev",
+  "provider_filter": [
+    "nous",
+    "alibaba"
+  ],
+  "overall": "INCOMPLETE",
+  "offline": {
+    "passed": 127,
+    "skipped": 2,
+    "subtests_passed": 24
+  },
+  "live": {
+    "objective_1": "NOT_VERIFIED",
+    "objective_2": "NOT_EXECUTED",
+    "objective_3": "NOT_EXECUTED",
+    "reason": "Live Hermes worker did not finish objective 1 within >330s despite objective policy SLA 300s; terminated bounded run. Last observed operations were native file reads on unlimited/runtime.py.",
+    "evidence_file_produced": false
+  },
+  "notes": "Gemini excluded after HTTP 429. No verification bypass, no successful full live acceptance. Provider runtime/step timeout handling must be fixed. Previous live run with Gemini reached objective 2 but failed SLA.",
+  "release": "BLOCKED"
+}

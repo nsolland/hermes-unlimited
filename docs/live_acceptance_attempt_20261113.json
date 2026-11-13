@@ -1,0 +1,50 @@
+{
+  "schema": "hermes_unlimited_live_acceptance_attempt_v1",
+  "captured_at_utc": "2026-11-13T06:49:19.534201+00:00",
+  "repo": "nsolland/hermes-unlimited-dev",
+  "branch": "feat/agy-autonomous-company-20261113",
+  "commit": "f7a7f4b0c7b14e9b2017b5346f70316c8edd3bad",
+  "environment": "acer, Hermes installed runtime, real network providers",
+  "offline": {
+    "tests_passed": 124,
+    "skipped": 2,
+    "subtests_passed": 24
+  },
+  "live": {
+    "overall": "FAILED",
+    "exit_code": 1,
+    "objective_1": {
+      "id": "obj-live-1-security-audit",
+      "verified": true,
+      "evidence": "Execution passed objective-1 independently_verified guard and continued to objective 2"
+    },
+    "objective_2": {
+      "id": "obj-live-2-checkpoint-resume",
+      "verified": false,
+      "status": "STOPPED_SLA_EXCEEDED",
+      "checks_failed": [
+        "missing_dag_steps:step-4-critique"
+      ],
+      "steps_completed": [
+        "step-1-triage",
+        "step-2-research",
+        "step-3-build"
+      ],
+      "step_3_first_attempt": "invalid_output",
+      "artifact_file_verified": true
+    },
+    "objective_3": {
+      "status": "NOT_EXECUTED"
+    }
+  },
+  "provider_blockers": [
+    {
+      "provider": "gemini",
+      "model": "gemini-3-flash",
+      "http_status": 429,
+      "reason": "Free-tier daily quota exhausted"
+    }
+  ],
+  "promotion_gate": "BLOCKED",
+  "notes": "Live test uses genuine models and did not bypass independent verification or SLA. This evidence is a concise record of the observed test output; no successful end-to-end acceptance is claimed."
+}
