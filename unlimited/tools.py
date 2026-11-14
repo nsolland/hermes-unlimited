@@ -140,6 +140,33 @@ SCHEMAS = (
             "additionalProperties": False},
     },
     {
+        "name": "unlimited_specialist_factory",
+        "description": "Inspect tool capabilities, propose bounded specialists, and rank models from independently verified results. No execution authority is granted.",
+        "parameters": {"type": "object", "properties": {
+            "operation": {"type": "string", "enum": ["discover", "propose", "evaluate", "probe", "benchmark"]},
+            "tool_schemas": {"type": "array", "items": {"type": "object"}},
+            "objective": {"type": "string"},
+            "selected_tools": {"type": "array", "items": {"type": "string"}},
+            "allowed_effects": {"type": "array", "items": {"type": "string"}},
+            "trials": {"type": "array", "items": {"type": "object"}},
+            "required_cases": {"type": "array", "items": {"type": "string"}},
+            "min_pass_rate": {"type": "number"},
+            "min_repetitions": {"type": "integer"},
+            "toolset": {"type": "string"},
+            "reviewed_effects": {"type": "object"},
+            "models": {"type": "array", "items": {"type": "string"}},
+            "cases": {"type": "array", "items": {"type": "object"}},
+            "repetitions": {"type": "integer"},
+            "model_id": {"type": "string"},
+            "case_id": {"type": "string"},
+            "prompt": {"type": "string"},
+            "expected": {"type": "string"},
+            "run_id": {"type": "string"},
+            "cost_usd_to_minor": {"type": "number"},
+            "allow_live_probe": {"type": "boolean"}},
+            "required": ["operation"], "additionalProperties": False},
+    },
+    {
         "name": "unlimited_company_cycle",
         "description": "Run a complete Autonomous Company Operating System cycle evaluating the 6 governing business questions across a candidate objective portfolio under an owner CompanyCharter.",
         "parameters": {"type": "object", "properties": {
@@ -263,7 +290,67 @@ def register_company_tools(ctx, scoped_secret, scoped_identity):
                     return {"request": request_id, "state": "running",
                             "task_id": response["task_id"], "executed": False}
 
-                if name == "unlimited_connection_manage":
+                if name == "unlimited_specialist_factory":
+                    from dataclasses import asdict
+                    from .specialist_factory import (
+                        Trial, discover_capabilities, build_specialist,
+                        rank_models, specialist_manifest,
+                    )
+                    operation = args["operation"]
+                    if operation in ("discover", "propose"):
+                        # Default to this installed Hermes manifest; external schemas
+                        # are descriptive only, never proof of live access.
+                        if "toolset" in args:
+                            from tools.registry import registry
+                            from .specialist_factory import discover_host_tools
+                            catalog = discover_host_tools(registry, toolset=args["toolset"])
+                        else:
+                            catalog = discover_capabilities(args.get("tool_schemas", SCHEMAS))
+                        from .specialist_factory import review_capability_effects
+                        if "reviewed_effects" in args:
+                            catalog = review_capability_effects(catalog, args["reviewed_effects"])
+                        if operation == "discover":
+                            out = {"capabilities": [asdict(c) for c in catalog],
+                                   "execution_authorized": False}
+                        else:
+                            proposed = build_specialist(
+                                args["objective"], args["selected_tools"], catalog,
+                                allowed_effects=args.get("allowed_effects", ["read"]))
+                            out = specialist_manifest(proposed)
+                    elif operation == "benchmark":
+                        from .specialist_factory import run_model_matrix
+                        if args.get("allow_live_probe") is not True:
+                            raise PermissionError("LIVE_BENCHMARK_REQUIRES_EXPLICIT_OPT_IN")
+                        llm = getattr(ctx, "llm", None)
+                        if llm is None or not callable(getattr(llm, "complete", None)):
+                            raise RuntimeError("HERMES_HOST_LLM_UNAVAILABLE")
+                        out = run_model_matrix(
+                            llm, models=args["models"], cases=args["cases"],
+                            repetitions=args.get("repetitions", 3),
+                            cost_usd_to_minor=args["cost_usd_to_minor"],
+                            min_pass_rate=args.get("min_pass_rate", .98))
+                    elif operation == "probe":
+                        from dataclasses import asdict
+                        from .specialist_factory import run_live_probe
+                        if args.get("allow_live_probe") is not True:
+                            raise PermissionError("LIVE_PROBE_REQUIRES_EXPLICIT_OPT_IN")
+                        llm = getattr(ctx, "llm", None)
+                        if llm is None or not callable(getattr(llm, "complete", None)):
+                            raise RuntimeError("HERMES_HOST_LLM_UNAVAILABLE")
+                        out = asdict(run_live_probe(
+                            llm, model_id=args["model_id"], case_id=args["case_id"],
+                            prompt=args["prompt"], expected=args["expected"],
+                            run_id=args["run_id"],
+                            cost_usd_to_minor=args["cost_usd_to_minor"]))
+                    elif operation == "evaluate":
+                        out = rank_models(
+                            [Trial(**row) for row in args.get("trials", [])],
+                            args["required_cases"],
+                            min_pass_rate=args.get("min_pass_rate", .98),
+                            min_repetitions=args.get("min_repetitions", 3))
+                    else:
+                        raise ValueError("UNKNOWN_SPECIALIST_OPERATION")
+                elif name == "unlimited_connection_manage":
                     from .customer_connections import CustomerConnectionRegistry
                     from .customer_connection_api import CustomerConnectionController
                     registry = CustomerConnectionRegistry(

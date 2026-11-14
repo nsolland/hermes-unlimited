@@ -123,6 +123,50 @@ class ToolIntegrationTests(unittest.TestCase):
         self.assertEqual(names, set(self.ctx.handlers),
                          "plugin.yaml must match registered tools exactly")
 
+    def test_specialist_factory_live_probe_requires_opt_in(self):
+        from types import SimpleNamespace
+        invocations = []
+        def fake_completion(messages, **kwargs):
+            invocations.append((messages, kwargs))
+            return SimpleNamespace(text="OK", model="small",
+                                   usage=SimpleNamespace(cost_usd=0.002))
+        self.ctx.llm = SimpleNamespace(complete=fake_completion)
+        payload = {"operation": "probe", "model_id": "small", "case_id": "exact",
+                   "prompt": "Return OK", "expected": "OK", "run_id": "run1",
+                   "cost_usd_to_minor": 100}
+        denied = self.call("unlimited_specialist_factory", payload)
+        self.assertFalse(denied["ok"])
+        self.assertEqual(invocations, [])
+        accepted = self.call("unlimited_specialist_factory", {
+            **payload, "allow_live_probe": True})
+        self.assertTrue(accepted["passed"])
+        self.assertEqual(accepted["cost_minor"], .2)
+        self.assertEqual(len(invocations), 1)
+
+    def test_specialist_factory_tool_end_to_end(self):
+        schema = {"name": "dns_lookup", "effect": "read", "description": "Lookup DNS",
+                  "parameters": {"type": "object", "properties": {"zone": {"type": "string"}},
+                                 "required": ["zone"]}}
+        inventory = self.call("unlimited_specialist_factory", {
+            "operation": "discover", "tool_schemas": [schema]})
+        self.assertEqual(inventory["capabilities"][0]["tool_name"], "dns_lookup")
+        self.assertFalse(inventory["execution_authorized"])
+        proposal = self.call("unlimited_specialist_factory", {
+            "operation": "propose", "tool_schemas": [schema],
+            "objective": "Check DNS", "selected_tools": ["dns_lookup"]})
+        self.assertEqual(proposal["status"], "DRAFT_UNVERIFIED")
+        self.assertFalse(proposal["execution_authorized"])
+        evaluation = self.call("unlimited_specialist_factory", {
+            "operation": "evaluate", "required_cases": ["normal"],
+            "trials": [{"model_id": "small", "case_id": "normal", "passed": True,
+                        "cost_minor": 1, "latency_seconds": 0.3,
+                        "independently_verified": True, "run_id": f"r{i}"}
+                       for i in range(3)]})
+        self.assertEqual(evaluation["recommended_model"], "small")
+        self.assertFalse(self.call("unlimited_specialist_factory", {
+            "operation": "propose", "tool_schemas": [schema],
+            "objective": "Change DNS", "selected_tools": ["missing"]})["ok"])
+
     def test_public_company_service_request_path(self):
         created = self.call("unlimited_company_create",
                             {"company_id": "company-a", "display_name": "Research Firm"})

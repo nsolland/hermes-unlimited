@@ -17,6 +17,7 @@ provides_tools:
   - unlimited_service_result
   - unlimited_mission_run
   - unlimited_economic_evaluate
+  - unlimited_specialist_factory
   - unlimited_memory_recall
   - unlimited_service_factory
   - unlimited_socratic_council
