@@ -167,6 +167,24 @@ SCHEMAS = (
             "required": ["operation"], "additionalProperties": False},
     },
     {
+        "name": "unlimited_junior_factory",
+        "description": "Tool-first junior catalog, Gmail junior proposals, model evaluation and strictly host-authorized read-only dispatch. No implicit Gmail access.",
+        "parameters": {"type": "object", "properties": {
+            "operation": {"type": "string", "enum": ["catalog", "propose", "propose_tool", "evaluate", "read"]},
+            "family": {"type": "string"},
+            "toolset": {"type": "string"},
+            "tool_name": {"type": "string"},
+            "objective": {"type": "string"},
+            "selected_operations": {"type": "array", "items": {"type": "string"}},
+            "target_operation": {"type": "string"},
+            "arguments": {"type": "object"},
+            "trials": {"type": "array", "items": {"type": "object"}},
+            "required_cases": {"type": "array", "items": {"type": "string"}},
+            "min_pass_rate": {"type": "number"},
+            "min_repetitions": {"type": "integer"}},
+            "required": ["operation"], "additionalProperties": False},
+    },
+    {
         "name": "unlimited_company_cycle",
         "description": "Run a complete Autonomous Company Operating System cycle evaluating the 6 governing business questions across a candidate objective portfolio under an owner CompanyCharter.",
         "parameters": {"type": "object", "properties": {
@@ -333,7 +351,57 @@ def register_company_tools(ctx, scoped_secret, scoped_identity):
                             "task_id": response["task_id"], "executed": False,
                             "selected_profile": response["selected_profile"]}
 
-                if name == "unlimited_specialist_factory":
+                if name == "unlimited_junior_factory":
+                    from .junior_factory import (catalog, propose_junior, junior_manifest,
+                                                 evaluate_models, dispatch_read)
+                    from .specialist_factory import Trial
+                    op = args["operation"]
+                    if op == "catalog":
+                        out = {"templates": catalog(), "execution_authorized": False}
+                    elif op == "evaluate":
+                        out = evaluate_models([Trial(**row) for row in args.get("trials", [])],
+                                              args["required_cases"],
+                                              min_pass_rate=args.get("min_pass_rate", .98),
+                                              min_repetitions=args.get("min_repetitions", 3))
+                    elif op == "propose_tool":
+                        from tools.registry import registry
+                        from .specialist_factory import discover_host_tools
+                        from .junior_factory import propose_tool_junior
+                        toolset = args["toolset"]
+                        tool_name = args["tool_name"]
+                        discovered = [cap for cap in discover_host_tools(registry, toolset=toolset)
+                                      if cap.tool_name == tool_name]
+                        if len(discovered) != 1:
+                            raise ValueError("JUNIOR_HOST_TOOL_NOT_FOUND")
+                        # Registry discovery says effect=unknown; reviewed_effect is
+                        # descriptive only and never admits execution.
+                        from .specialist_factory import review_capability_effects
+                        effect = getattr(ctx, "reviewed_junior_tool_effect", None)
+                        if not callable(effect):
+                            raise PermissionError("JUNIOR_EFFECT_REVIEW_REQUIRED")
+                        reviewed = review_capability_effects(discovered,
+                            {tool_name: effect(tenant, identity, tool_name)})
+                        out = junior_manifest(propose_tool_junior(reviewed[0], tenant,
+                                                               objective=args["objective"]))
+                    elif op in ("propose", "read"):
+                        selected = args.get("selected_operations", [])
+                        proposal = propose_junior(args["family"], tenant, selected)
+                        if op == "propose":
+                            out = junior_manifest(proposal)
+                        else:
+                            # Host owns OAuth/session binding and Gmail transport. No direct
+                            # Gmail calls, leaked credentials, or write effects from this tool.
+                            host_auth = getattr(ctx, "authorize_junior_operation", None)
+                            host_execute = getattr(ctx, "execute_junior_gmail_read", None)
+                            if not callable(host_auth) or not callable(host_execute):
+                                raise PermissionError("JUNIOR_GMAIL_HOST_ADAPTER_REQUIRED")
+                            out = dispatch_read(proposal, args["target_operation"],
+                                                args["arguments"], tenant=tenant, identity=identity,
+                                                verify_identity=lambda t, i: verify(provider, t, i),
+                                                authorize=host_auth, adapter=host_execute)
+                    else:
+                        raise ValueError("UNKNOWN_JUNIOR_OPERATION")
+                elif name == "unlimited_specialist_factory":
                     from dataclasses import asdict
                     from .specialist_factory import (
                         Trial, discover_capabilities, build_specialist,

@@ -123,6 +123,77 @@ class ToolIntegrationTests(unittest.TestCase):
         self.assertEqual(names, set(self.ctx.handlers),
                          "plugin.yaml must match registered tools exactly")
 
+    def test_junior_gmail_read_uses_real_adapter_shape_without_credentials(self):
+        from unlimited.gmail_junior_adapter import GmailJuniorReadAdapter
+        class FakeGmail:
+            def users(self): return self
+            def messages(self): return self
+            def list(self, **kwargs):
+                assert kwargs == {"userId":"me","q":"in:inbox","maxResults":20}
+                class Request:
+                    def execute(self): return {"messages":[{"id":"aabb11","threadId":"thread1"}]}
+                return Request()
+        self.ctx.authorize_junior_operation=lambda *scope: scope == ("tenant-a","@owner","gmail","list_messages")
+        self.ctx.execute_junior_gmail_read=GmailJuniorReadAdapter(FakeGmail())
+        out=self.call("unlimited_junior_factory",{"operation":"read","family":"gmail",
+                    "selected_operations":["list_messages"],
+                    "target_operation":"list_messages","arguments":{"query":"in:inbox"}})
+        self.assertEqual(out["result"]["messages"],[{"id":"aabb11","threadId":"thread1"}])
+        self.assertFalse(out["external_write"])
+
+    def test_junior_propose_tool_uses_hermes_registry_and_host_effect_review(self):
+        name="unlimited_junior_factory"
+        class FakeRegistry:
+            def get_all_tool_names(self): return ["dns_lookup", "other"]
+            def get_toolset_for_tool(self, tool): return "dns" if tool == "dns_lookup" else "other"
+            def get_definitions(self, names, quiet=False):
+                return [{"function": {"name": "dns_lookup", "description": "Read DNS",
+                        "parameters": {"type": "object", "properties": {"zone": {"type": "string"}},
+                                       "required": ["zone"]}}}] if names else []
+        registry_module=types.ModuleType("tools.registry")
+        registry_module.registry=FakeRegistry()
+        previous=sys.modules.get("tools.registry")
+        sys.modules["tools.registry"]=registry_module
+        try:
+            args={"operation": "propose_tool", "toolset": "dns", "tool_name": "dns_lookup",
+                  "objective": "Read DNS zone"}
+            self.assertFalse(self.call(name,args)["ok"])
+            self.ctx.reviewed_junior_tool_effect=lambda *scope: "read"
+            proposed=self.call(name,args)
+            self.assertEqual(proposed["tool"],"dns_lookup")
+            self.assertFalse(proposed["execution_authorized"])
+            self.assertEqual(len(proposed["operations"]),1)
+            self.assertEqual(proposed["operations"][0]["name"],"dns_lookup")
+            self.assertFalse(self.call(name,{**args,"tool_name":"unlisted"})["ok"])
+            self.ctx.reviewed_junior_tool_effect=lambda *scope: "unknown"
+            self.assertFalse(self.call(name,args)["ok"])
+        finally:
+            if previous is None: sys.modules.pop("tools.registry",None)
+            else: sys.modules["tools.registry"]=previous
+
+    def test_junior_gmail_read_requires_host_binding(self):
+        name = "unlimited_junior_factory"
+        templates = self.call(name, {"operation":"catalog"})
+        self.assertFalse(templates["execution_authorized"])
+        proposal = self.call(name, {"operation":"propose", "family":"gmail",
+                                    "selected_operations":["list_messages"]})
+        self.assertEqual(proposal["tool"], "gmail")
+        self.assertFalse(proposal["execution_authorized"])
+        payload={"operation":"read", "family":"gmail",
+                 "selected_operations":["list_messages"],
+                 "target_operation":"list_messages", "arguments":{"query":"in:inbox"}}
+        self.assertFalse(self.call(name,payload)["ok"])
+        recorded=[]
+        self.ctx.authorize_junior_operation=lambda *scope: scope == ("tenant-a","@owner","gmail","list_messages")
+        self.ctx.execute_junior_gmail_read=lambda operation,args: recorded.append((operation,args)) or ["m1"]
+        answer=self.call(name,payload)
+        self.assertEqual(answer["result"],["m1"])
+        self.assertEqual(recorded,[("list_messages",{"query":"in:inbox"})])
+        self.assertFalse(self.call(name,{**payload,"target_operation":"send_message",
+                                         "selected_operations":["send_message"],
+                                         "arguments":{"message_id":"m1"}})["ok"])
+        self.assertEqual(len(recorded),1)
+
     def test_specialist_factory_live_probe_requires_opt_in(self):
         from types import SimpleNamespace
         invocations = []
