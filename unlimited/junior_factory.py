@@ -41,14 +41,39 @@ GMAIL_OPERATIONS = (
 
 TEMPLATES = {
     "gmail": ("Junior Gmail Agent", "gmail", GMAIL_OPERATIONS),
+    "outlook": ("Junior Outlook Agent", "outlook", (
+        JuniorOperation("search_messages", "read", ("query",)),
+        JuniorOperation("get_message", "read", ("message_id",)),
+        JuniorOperation("create_draft", "write", ("to", "subject", "body")),
+        JuniorOperation("send_message", "write", ("message_id",)),
+    )),
+    "slack": ("Junior Slack Agent", "slack", (
+        JuniorOperation("search_messages", "read", ("query",)),
+        JuniorOperation("get_thread", "read", ("channel", "thread_ts")),
+        JuniorOperation("post_message", "write", ("channel", "text")),
+    )),
+    "github": ("Junior GitHub Agent", "github", (
+        JuniorOperation("list_issues", "read", ("repository",)),
+        JuniorOperation("get_issue", "read", ("repository", "number")),
+        JuniorOperation("create_issue", "write", ("repository", "title", "body")),
+    )),
+    "cloudflare": ("Junior Cloudflare Agent", "cloudflare", (
+        JuniorOperation("list_dns_records", "read", ("zone_id",)),
+        JuniorOperation("get_zone", "read", ("zone_id",)),
+        JuniorOperation("update_dns_record", "write", ("zone_id", "record_id")),
+    )),
 }
 
 
 def catalog() -> dict[str, Any]:
     """Advertise templates, not a claim of installed host connections."""
+    from .crew_hierarchy import validate_placement
     return {name: {"role": role, "tool": tool,
+                   "parent_group": validate_placement(name)[0],
+                   "parent_role": validate_placement(name)[1],
                    "operations": [asdict(op) for op in operations],
-                   "connected": False, "execution_authorized": False}
+                   "connected": False, "execution_authorized": False,
+                   "runtime_adapter_available": name == "gmail"}
             for name, (role, tool, operations) in TEMPLATES.items()}
 
 

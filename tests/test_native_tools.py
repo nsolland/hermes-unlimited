@@ -123,6 +123,20 @@ class ToolIntegrationTests(unittest.TestCase):
         self.assertEqual(names, set(self.ctx.handlers),
                          "plugin.yaml must match registered tools exactly")
 
+    def test_junior_organization_and_unimplemented_family_fail_closed(self):
+        name="unlimited_junior_factory"
+        organization=self.call(name,{"operation":"organization"})
+        self.assertEqual(organization["orchestration"]["engine"],"T3 / World Commander")
+        self.assertIn("CEO",organization["groups"]["leadership"])
+        templates=self.call(name,{"operation":"catalog"})["templates"]
+        self.assertEqual(set(templates),{"gmail","outlook","slack","github","cloudflare"})
+        self.ctx.authorize_junior_operation=lambda *args:True
+        self.ctx.execute_junior_gmail_read=lambda *args:"SHOULD_NEVER_BE_CALLED"
+        result=self.call(name,{"operation":"read","family":"slack",
+                               "selected_operations":["search_messages"],
+                               "target_operation":"search_messages", "arguments":{"query":"hello"}})
+        self.assertFalse(result["ok"])
+
     def test_junior_gmail_read_uses_real_adapter_shape_without_credentials(self):
         from unlimited.gmail_junior_adapter import GmailJuniorReadAdapter
         class FakeGmail:

@@ -170,7 +170,7 @@ SCHEMAS = (
         "name": "unlimited_junior_factory",
         "description": "Tool-first junior catalog, Gmail junior proposals, model evaluation and strictly host-authorized read-only dispatch. No implicit Gmail access.",
         "parameters": {"type": "object", "properties": {
-            "operation": {"type": "string", "enum": ["catalog", "propose", "propose_tool", "evaluate", "read"]},
+            "operation": {"type": "string", "enum": ["catalog", "organization", "propose", "propose_tool", "evaluate", "read"]},
             "family": {"type": "string"},
             "toolset": {"type": "string"},
             "tool_name": {"type": "string"},
@@ -358,6 +358,9 @@ def register_company_tools(ctx, scoped_secret, scoped_identity):
                     op = args["operation"]
                     if op == "catalog":
                         out = {"templates": catalog(), "execution_authorized": False}
+                    elif op == "organization":
+                        from .crew_hierarchy import crew_catalog
+                        out = crew_catalog()
                     elif op == "evaluate":
                         out = evaluate_models([Trial(**row) for row in args.get("trials", [])],
                                               args["required_cases"],
@@ -389,6 +392,8 @@ def register_company_tools(ctx, scoped_secret, scoped_identity):
                         if op == "propose":
                             out = junior_manifest(proposal)
                         else:
+                            if args["family"] != "gmail":
+                                raise PermissionError("JUNIOR_FAMILY_RUNTIME_ADAPTER_UNAVAILABLE")
                             # Host owns OAuth/session binding and Gmail transport. No direct
                             # Gmail calls, leaked credentials, or write effects from this tool.
                             host_auth = getattr(ctx, "authorize_junior_operation", None)
