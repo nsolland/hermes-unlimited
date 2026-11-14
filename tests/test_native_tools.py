@@ -129,7 +129,8 @@ class ToolIntegrationTests(unittest.TestCase):
         self.assertEqual(organization["orchestration"]["engine"],"T3 / World Commander")
         self.assertIn("CEO",organization["groups"]["leadership"])
         templates=self.call(name,{"operation":"catalog"})["templates"]
-        self.assertEqual(set(templates),{"gmail","outlook","slack","github","cloudflare"})
+        self.assertEqual(set(templates),set(__import__("unlimited.junior_factory", fromlist=["TEMPLATES"]).TEMPLATES))
+        self.assertEqual(len(templates),16)
         self.ctx.authorize_junior_operation=lambda *args:True
         self.ctx.execute_junior_gmail_read=lambda *args:"SHOULD_NEVER_BE_CALLED"
         result=self.call(name,{"operation":"read","family":"slack",

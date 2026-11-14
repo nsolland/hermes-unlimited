@@ -29,3 +29,13 @@ Connect a customer-owned Gmail OAuth account through a Hermes host adapter; veri
 ## Crew-wide catalog and initial junior families
 
 `unlimited_junior_factory(operation="organization")` returns the role hierarchy and public crew groups, covering leadership, coordination, intelligence, production, operations, business/people and assurance. `catalog` now includes Gmail, Outlook, Slack, GitHub and Cloudflare Junior blueprints, each with a specific parent role, one provider/tool family, and explicit operation-level effects. **Only Gmail has an initial read-only transport implementation**; other provider profiles are descriptors awaiting a real Hermes host adapter and tests. Do not interpret their appearance in the catalog as installed connections or agent availability. The orchestration role remains T3/World Commander, with no mandatory always-on frontier model.
+
+
+## Expanded 16-family integration catalog
+
+The customer-visible Integration Crew now includes Gmail, Outlook, Slack, Teams, GitHub, Cloudflare, Drive, Calendar, Notion, Jira, Confluence, Stripe, HubSpot, WhatsApp, Telegram and VIA. These 16 profiles are **descriptive draft blueprints**, except for the initial host-authenticated Gmail read-only transport. Templates are not claims of OAuth setup, installed integration, permissions, or independently verified model capability. Each profile exposes proposed operation-level read/write effects, parent department, and a tenant-bound draft identity. Generic Hermes tool-first discovery should be preferred to hardcoded provider transport implementation where matching host tools already exist. All unimplemented reads and all writes remain denied.
+
+
+## Specialist director / conductor compositions
+
+`organization` also advertises eight functional integration conductors (Data, AI/Model, Automation, Integration, Security, Compliance, Business, Development) and a Research specialist with ten suggested juniors: GitHub, Browser, Patent, Papers, Prediction, Skeptic, Data, Model, News and Competition. These are **conceptual role mappings**, not automatically installed model agents. Critic/skeptic roles are organizationally independent reviewers; they are not a claim of deterministic correctness. No additional research connectors or runtime tasks are created by this catalog.

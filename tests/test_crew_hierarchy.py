@@ -17,8 +17,19 @@ class CrewHierarchyTests(unittest.TestCase):
             self.assertIn(role,CREW_GROUPS[group])
             self.assertEqual(catalog()[family]['parent_role'],role)
             self.assertFalse(catalog()[family]['connected'])
+    def test_research_specialist_and_integration_conductors_are_descriptive(self):
+        view=crew_catalog()
+        self.assertEqual(len(view["integration_conductors"]),8)
+        research=view["research_specialist"]
+        self.assertEqual(research["role"],"Researcher")
+        self.assertEqual(len(research["juniors"]),10)
+        self.assertIn("skeptic",research["juniors"])
+        self.assertFalse(research["execution_authorized"])
+        self.assertEqual(research["status"],"DESIGN_ONLY_UNVERIFIED")
+
     def test_only_gmail_has_initial_read_transport(self):
-        for family in ('slack','outlook','github','cloudflare'):
+        for family in ('slack','outlook','github','cloudflare','teams','drive','calendar','notion',
+                       'jira','confluence','stripe','hubspot','telegram','whatsapp','via'):
             self.assertFalse(catalog()[family]['runtime_adapter_available'])
             first=catalog()[family]['operations'][0]['name']
             self.assertEqual(propose_junior(family,'tenant-a',[first]).status,'DRAFT_UNVERIFIED')

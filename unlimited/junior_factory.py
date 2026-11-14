@@ -62,6 +62,60 @@ TEMPLATES = {
         JuniorOperation("get_zone", "read", ("zone_id",)),
         JuniorOperation("update_dns_record", "write", ("zone_id", "record_id")),
     )),
+    "teams": ("Junior Teams Agent", "teams", (
+        JuniorOperation("list_chats", "read", ("user_id",)),
+        JuniorOperation("get_chat_messages", "read", ("chat_id",)),
+        JuniorOperation("post_chat_message", "write", ("chat_id", "text")),
+    )),
+    "drive": ("Junior Drive Agent", "drive", (
+        JuniorOperation("list_files", "read", ("query",)),
+        JuniorOperation("get_file", "read", ("file_id",)),
+        JuniorOperation("create_file", "write", ("name", "parent_id")),
+    )),
+    "calendar": ("Junior Calendar Agent", "calendar", (
+        JuniorOperation("list_events", "read", ("calendar_id",)),
+        JuniorOperation("get_event", "read", ("calendar_id", "event_id")),
+        JuniorOperation("create_event", "write", ("calendar_id", "summary", "start", "end")),
+    )),
+    "notion": ("Junior Notion Agent", "notion", (
+        JuniorOperation("search_pages", "read", ("query",)),
+        JuniorOperation("get_page", "read", ("page_id",)),
+        JuniorOperation("create_page", "write", ("parent_id", "title")),
+    )),
+    "jira": ("Junior Jira Agent", "jira", (
+        JuniorOperation("search_issues", "read", ("jql",)),
+        JuniorOperation("get_issue", "read", ("issue_key",)),
+        JuniorOperation("create_issue", "write", ("project_key", "summary")),
+    )),
+    "confluence": ("Junior Confluence Agent", "confluence", (
+        JuniorOperation("search_pages", "read", ("query",)),
+        JuniorOperation("get_page", "read", ("page_id",)),
+        JuniorOperation("create_page", "write", ("space_id", "title")),
+    )),
+    "stripe": ("Junior Stripe Agent", "stripe", (
+        JuniorOperation("get_payment", "read", ("payment_id",)),
+        JuniorOperation("list_invoices", "read", ("customer_id",)),
+        JuniorOperation("create_payment_link", "write", ("price_id",)),
+    )),
+    "hubspot": ("Junior HubSpot Agent", "hubspot", (
+        JuniorOperation("search_contacts", "read", ("query",)),
+        JuniorOperation("get_deal", "read", ("deal_id",)),
+        JuniorOperation("create_deal", "write", ("title", "pipeline_id")),
+    )),
+    "telegram": ("Junior Telegram Agent", "telegram", (
+        JuniorOperation("get_updates", "read", ("offset",)),
+        JuniorOperation("send_message", "write", ("chat_id", "text")),
+    )),
+    "whatsapp": ("Junior WhatsApp Agent", "whatsapp", (
+        JuniorOperation("get_message_status", "read", ("message_id",)),
+        JuniorOperation("send_message", "write", ("recipient", "text")),
+    )),
+    "via": ("Junior VIA Agent", "via", (
+        JuniorOperation("get_service_request", "read", ("request_id",)),
+        JuniorOperation("get_service_quote", "read", ("quote_id",)),
+        JuniorOperation("submit_service_request", "write", ("request_id",)),
+    )),
+
 }
 
 
