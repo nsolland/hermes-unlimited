@@ -3,92 +3,132 @@
 **Prepared by:** Hermes Quality Factory (bounded local audit)
 **Date:** 2026-11-14
 **Reference issue:** nsolland/hermes-unlimited-dev#19 — *P0: Adopt domain-specific agents via existing Hermes runtime — 30-capability evidence audit*
+**Scope:** code + local test execution only. No upstream fetch, no live model calls, no provider API calls.
+
+---
 
 ## Pinned source SHA
 
 | Item | SHA | Branch |
 | --- | --- | --- |
-| `nsolland/hermes-unlimited-dev` (development) | `5555bef80e2f4f9f1aaf0e5e7b2ed7d0c992ac50` | `development` |
+| `nsolland/hermes-unlimited-dev` (development) | `a80527c36524f5c32f31bc68be23608f88fd1bd4` | `development` |
 
-No upstream fetch, no live model calls, no provider API calls were made for this audit. The audit is grounded in **local code state** and **local test execution only**.
+This is the development HEAD as of 2026-11-14; it includes `feat: expand Integration Crew to 16 junior families and research teams (#31)`, `feat: Junior Agent Factory ... (#27)`, and the merged `issue #22` permission inventory (PR #29, `d1a33cc`).
 
-## Local test evidence
+---
 
-Ran the local suite against pinned development HEAD `5555bef` (`PYTHONPATH` set to the worktree root):
+## Local test evidence (real, run this run)
 
+Exact command run against the pinned SHA `a80527c36524`:
+
+```bash
+cd /home/njaal/.local/share/hermes-unlimited-src
+timeout 290 /home/njaal/.hermes/installs/7bd35cf56a085001/test-environment/gen-7b4f4cc2fb3541f2a5c2941c33992299/venv/bin/python3 -m pytest -q \
+  tests/test_contracts.py tests/test_runtime.py tests/test_socratic_council.py tests/test_native_tools.py tests/test_media_isolation.py \
+  tests/test_board_isolation.py tests/test_integrations.py tests/test_kanban.py tests/test_hermes_runtime_path.py \
+  tests/test_justyou.py tests/test_justyou_host.py tests/test_a2ui_adapter.py tests/test_a2ui_bridge.py \
+  tests/test_commerce_ledger.py tests/test_standalone_verifier.py
 ```
-189 passed, 2 skipped, 29 subtests passed in 72.42s (0:01:12)
+
+Result:
+
+```text
+88 passed, 24 subtests passed in 12.52s
 ```
 
-Notes:
-- 29 subtests were run within the 189 passed tests; 2 tests were skipped (live/integration paths requiring external accounts or a display).
-- No GitHub Actions, live provider calls, or paid compute were used.
+- All 88 tests passed against the pinned development SHA on the first run; zero failures.
+- 24 subtests exercised across the 15 collected files; all passed.
+- Live/integration paths requiring external accounts or a display (e.g. `tests/test_live_justyou_customer.py`, `tests/test_native_kanban_cli_live.py`, `tests/test_live_justyou_inbound_hermes.py`, telegram tests, `tests/test_customer_connection_api.py`, `tests/test_external_effects.py`) were **excluded** by design — they cannot run in this cron environment and are reported as `BLOCKED`, not skipped-with-implication.
+- No GitHub Actions, live model calls, or paid compute were used.
+
+---
 
 ## Status vocabulary
 
-- `IMPLEMENTED_TESTED` — code present, at least one local unit/integration test passes for the capability.
+- `IMPLEMENTED_TESTED` — code present **and** at least one local unit/integration test passes for the capability.
 - `IMPLEMENTED_UNVERIFIED` — code present but not demonstrated end-to-end locally; live behavior unverified.
 - `PARTIAL` — capability present but incomplete or gated behind an open condition.
 - `MISSING` — no implementation found.
-- `BLOCKED` — dependency/provisioning required (credential, network, account) that is unavailable here.
+- `NOT ASSESSED` — no dedicated Unlimited module to inspect at this time (absence of a module is not proof of absence in Hermes upstream).
+- `BLOCKED` — dependency/provisioning required (credential, network, account) that is unavailable in this environment.
 
-## 30-capability evidence matrix
+---
+
+## 30-capability evidence matrix (corrected 2026-11-14)
 
 | # | Capability | Status | Primary evidence (file / test) | Notes |
 | --- | --- | --- | --- | --- |
-| 01 | Agentic loop orchestration | IMPLEMENTED_UNVERIFIED | `unlimited/autonomy.py` (9-step loop) + `tests/test_autonomous_company.py` | Code present; live loop not demonstrated locally. |
-| 02 | Provider abstraction | NOT ASSESSED | Hermes upstream provider/model routing; `ProviderStore` only handles tenant-scoped business identity | Local ProviderStore tests do **not** establish model-provider abstraction. Requires upstream pinned tests. |
-| 03 | Durable execution | IMPLEMENTED_UNVERIFIED | `unlimited/autonomy.py` (SQLite checkpointing, in-memory + Durable SQLite) | Code present; live recovery path untested. |
-| 04 | Tool call validation | IMPLEMENTED_UNVERIFIED | `unlimited/autonomy.py` + `unlimited/tools.py` | Idempotency/validation present; call-level negative suite not run here. |
-| 05 | Stop conditions | IMPLEMENTED_TESTED | `unlimited/autonomy.py` (step 9: EV <= 0 stop) + `test_autonomous_company.py` | Local test observable. |
-| 06 | Multi-agent turn coordination | PARTIAL | `unlimited/autonomy.py` (Crew roles), World Commander candidate integrations | Role dispatch alone does not demonstrate cross-agent turns or durable handoffs. |
-| 07 | Durable thread state | IMPLEMENTED_UNVERIFIED | `unlimited/autonomy.py` (SQLite durable state) | Present; live replay not demonstrated. |
-| 08 | Message hierarchy (sub-prompts) | IMPLEMENTED_UNVERIFIED | `unlimited/autonomy.py` | Present in loop; nested-messaging end-to-end not run. |
-| 09 | Context window management | IMPLEMENTED_UNVERIFIED | `unlimited/autonomy.py` + `unlimited/economics.py` | Model routing present; context-window policy not independently verified. |
-| 10 | Parallel tool execution | IMPLEMENTED_UNVERIFIED | `unlimited/autonomy.py` (concurrent.futures) | Thread pool present; parallel tool live test not run. |
-| 11 | Real-time log streaming | IMPLEMENTED_UNVERIFIED | `unlimited/autonomy.py` + web layer | Present; real-time streaming not smoke-tested locally. |
-| 12 | Memory-efficient image processing | NOT ASSESSED | Hermes upstream image/vision tools to inspect | No dedicated Unlimited implementation is not proof of a platform-level gap. |
-| 13 | Large file chunking | NOT ASSESSED | Hermes upstream file tools to inspect | No distinct Unlimited module; upstream not verified. |
-| 14 | Automatic image optimization | NOT ASSESSED | Hermes upstream media/vision tools to inspect | No upstream assessment yet. |
-| 15 | Zero-config discovery | IMPLEMENTED_UNVERIFIED | `unlimited/hermes_kanban.py`, `justyou.py` | Discovery present; not exercised live. |
-| 16 | Message lifecycle hooks | IMPLEMENTED_UNVERIFIED | `unlimited/autonomy.py` | Present; live hook coverage not measured. |
-| 17 | Tool lifecycle hooks | IMPLEMENTED_UNVERIFIED | `unlimited/autonomy.py` + `unlimited/tools.py` | Present; not independently regression-tested here. |
-| 18 | Framework-agnostic client | IMPLEMENTED_TESTED | `unlimited/a2ui_adapter.py`, `a2ui_bridge.py` + `test_a2ui_adapter.py` | Adapter exists; a2ui integration tests green. |
-| 19 | Workblock groupings | PARTIAL | `unlimited/autonomy.py` (DAG of work steps) | DAG steps are tested; equivalence to the slide's Workblock grouping semantics is unproven. |
-| 20 | Agent packaging & distribution | IMPLEMENTED_UNVERIFIED | `plugin.yaml`, `unlimited` package | Package present; distribution/registration not exercised. |
-| 21 | Sub-prompt chaining | IMPLEMENTED_UNVERIFIED | `unlimited/autonomy.py` | Present; runtime chaining not live-verified. |
-| 22 | Graceful execution abort | IMPLEMENTED_TESTED | `unlimited/autonomy.py` + `test_runtime.py` | Local observable. |
-| 23 | Serial tool execution | IMPLEMENTED_TESTED | `unlimited/autonomy.py` + `tests/test_autonomous_company.py` | Local observable. |
-| 24 | Retry with backoff | IMPLEMENTED_UNVERIFIED | `unlimited/autonomy.py` + `unlimited/economics.py` | Retry logic present; backoff not load-tested. |
+| 01 | Agentic loop orchestration | IMPLEMENTED_UNVERIFIED | `unlimited/screenplay_adapter.py` (ScreenplayAdapter step loop) + `unlimited/adi.py` (AdiProvider delegability) | Loop present; live end-to-end agent mission not demonstrated here. Prior audit's `unlimited/autonomy.py` is **removed** — this is the correction. |
+| 02 | Provider abstraction | NOT ASSESSED | Hermes upstream provider/model routing | `unlimited/runtime.py` `ProviderStore` handles tenant-scoped business identity, not model-provider abstraction. Requires upstream pinned tests. |
+| 03 | Durable execution | PARTIAL | `unlimited/runtime.py` (SQLite `ProviderStore` session/database) | SQLite-backed state is present and unit-tested; no dedicated durable step-checkpoint module exists in current code. |
+| 04 | Tool call validation | IMPLEMENTED_TESTED | `unlimited/tools.py` (validated store + `verified_store`) + `tests/test_native_tools.py` | Validation and idempotency present; call-level negative suite not run here. |
+| 05 | Stop conditions | PARTIAL | (no dedicated module) | No dedicated stop-condition module in current code; step termination is inherited from the native Hermes CLI for live runs. |
+| 06 | Multi-agent turn coordination | PARTIAL | `unlimited/socratic_council.py` (SocraticCouncil) + `unlimited/screenplay_adapter.py` | Council + screenplay composition present; cross-agent turn durability not demonstrated. |
+| 07 | Durable thread state | IMPLEMENTED_TESTED | `unlimited/runtime.py` (SQLite companies/services/requests) + `tests/test_runtime.py` | Local green. |
+| 08 | Message hierarchy (sub-prompts) | PARTIAL | `unlimited/screenplay_adapter.py` | Nested-messaging end-to-end not run. |
+| 09 | Context window management | PARTIAL | `unlimited/economics.py` + `unlimited/benchmark.py` | Model routing + cost model present; context-window policy not independently verified. No dedicated test here. |
+| 10 | Parallel tool execution | PARTIAL | (no distinct Unlimited module) | No dedicated ParallelToolExecution module in current code; Hermes upstream/threading is not scoped here. |
+| 11 | Real-time log streaming | PARTIAL | `unlimited/screenplay_adapter.py` (offline demo recording) | Real-time streaming not independently verified; demo recording is offline and deterministic. |
+| 12 | Memory-efficient image processing | NOT ASSESSED | Hermes upstream image/vision tools | No dedicated Unlimited image module. |
+| 13 | Large file chunking | NOT ASSESSED | Hermes upstream file tools | No distinct Unlimited module. |
+| 14 | Automatic image optimization | NOT ASSESSED | Hermes upstream media/vision tools | No upstream assessment yet. |
+| 15 | Zero-config discovery | IMPLEMENTED_TESTED | `unlimited/hermes_kanban.py` (`board_for`, scope-isolated board derivation) + `tests/test_kanban.py` | Loopback/bounded; requires native Hermes CLI for full run. |
+| 16 | Message lifecycle hooks | PARTIAL | (no distinct module) | No dedicated lifecycle-hook module in current code. |
+| 17 | Tool lifecycle hooks | IMPLEMENTED_TESTED | `unlimited/tools.py` (`register_company_tools`, `verified_store`) + `tests/test_native_tools.py` | Tool registration and verified store present and unit-tested. |
+| 18 | Framework-agnostic client | IMPLEMENTED_TESTED | `unlimited/a2ui_adapter.py` + `unlimited/a2ui_bridge.py` + `tests/test_a2ui_adapter.py` | Adapter exists; a2ui integration tests green. |
+| 19 | Workblock groupings | PARTIAL | `unlimited/screenplay_adapter.py` (DemoScenario DAG) + `docs/JUNIOR_AGENT_FACTORY.md` | DAG present; equivalence to the AGNTCon Workblock grouping semantics is unproven. |
+| 20 | Agent packaging & distribution | IMPLEMENTED_UNVERIFIED | `plugin.yaml` + `unlimited` package | Package present; distribution/registration not exercised. |
+| 21 | Sub-prompt chaining | PARTIAL | `unlimited/screenplay_adapter.py` | Runtime chaining not live-verified. |
+| 22 | Graceful execution abort | PARTIAL | (no dedicated module) | No dedicated abort module; termination is delegated to the native Hermes CLI for live runs. |
+| 23 | Serial tool execution | IMPLEMENTED_TESTED | `unlimited/tools.py` (`register_company_tools`) + `tests/test_native_tools.py` | Local green. |
+| 24 | Retry with backoff | IMPLEMENTED_UNVERIFIED | `unlimited/justyou.py` + `unlimited/hermes_kanban.py` | Retry/backoff logic present; not load-tested here. |
 | 25 | Unified response format | IMPLEMENTED_TESTED | `unlimited/contracts.py` (`CompanySpec`, `ServiceSpec`, `TaskReceipt`) + `tests/test_contracts.py` | Local green. |
-| 26 | HTTP streaming for long execution | IMPLEMENTED_UNVERIFIED | web layer + `unlimited/hermes_live_worker.py` | Present; streaming not live-verified. |
-| 27 | WebSocket persistence | NOT ASSESSED | Hermes gateway/web layer to inspect | A design reference alone is not evidence of implemented persistence. |
-| 28 | Execution telemetry | IMPLEMENTED_TESTED | `unlimited/economics.py` + `unlimited/benchmark.py` | Local observable. |
+| 26 | HTTP streaming for long execution | NOT ASSESSED | (module removed in refactor) | A prior snapshot referenced `unlimited/hermes_live_worker.py` for streaming; that module no longer exists in this tree. Not a platform-level gap claim. |
+| 27 | WebSocket persistence | NOT ASSESSED | Hermes gateway/web layer | A design reference alone is not evidence of implemented persistence. |
+| 28 | Execution telemetry | IMPLEMENTED_UNVERIFIED | `unlimited/economics.py` + `unlimited/benchmark.py` | Routing + cost model present; no local unit test in this run; load test not performed. |
 | 29 | Namespace isolation | IMPLEMENTED_TESTED | `unlimited/runtime.py` (`ProviderStore`, tenant scoping) + `tests/test_runtime.py` | Local green. |
-| 30 | Hallucinated tool rejection | NOT ASSESSED | Hermes upstream tool registry/dispatcher to inspect | `FORBIDDEN_PLACEHOLDERS` rejects deliverable text, **not** hallucinated tool names. |
+| 30 | Hallucinated tool rejection | NOT ASSESSED | Hermes upstream tool registry/dispatcher | `unlimited/tools.py` `FORBIDDEN_PLACEHOLDERS` reject deliverable text, **not** hallucinated tool names. |
+
+---
 
 ## P0 acceptance items — local evidence status
 
-1. **Cross-repo evidence matrix (Hermes upstream + internal T3 + World Commander + Unlimited).** Not performed in this run. Requires cross-repo SHA pinning and test comparison across repos not available in this working set. Listed here for tracking; closed only after independent cross-repo evidence is recorded.
-2. **Pin precise upstream SHA and run local green tests.** Done — development HEAD `5555bef` pinned; local suite: 189 passed / 2 skipped (above).
-3. **Validate live mission complete/interrupt/resume** (timeout, 401/402/429, cross-tenant negatives). **Blocked** — requires live provider accounts/endpoints not available in this cron environment.
-4. **Evaluate YOLO default, verifier key fallback, replay cache, cost assumptions.** **Not performed in the original bounded audit** — static inspection alone identified `HERMES_YOLO_MODE=1` default on that snapshot and a verifier signing-key fallback. These risks must be evaluated regardless of live mission availability.
+1. **Cross-repo evidence matrix (Hermes upstream + internal T3 + World Commander + Unlimited).** Not performed in this run. Requires cross-repo SHA pinning and test comparison across repos not available in this working set. Listed for tracking; closed only after independent cross-repo evidence is recorded.
+2. **Pin precise upstream SHA and run local green tests.** Done — development HEAD `a80527c36524` pinned; local curated subset: **88 passed / 24 subtests passed** (above).
+3. **Validate live mission complete/interrupt/resume** (timeout, 401/402/429, cross-tenant negatives). **BLOCKED** — requires live provider accounts/endpoints not available in this cron environment.
+4. **Evaluate YOLO default, verifier key fallback, replay cache, cost assumptions.** **PARTIAL** — static inspection of `unlimited/justyou.py` (`JustYouVerifier`, with `session_store`/`resolver` supplied by the trusted Hermes host, never a payload flag) and `unlimited/hermes_kanban.py` (scope-isolated boards) shows no implicit YOLO-on default in the current tree; **`HERMES_YOLO_MODE=1` removal** (`fix/hermes-preserve-operator-permissions-22`, PR #24, merged as `402ffcd`) is included in the pinned development HEAD. Fully independent live verification of fallback keys is still required.
 5. **Compare general vs domain-specific coordinated agents.** Not performed (requires paired live runs; not available here).
-6. **Assess Standard Agent Specification 0.2.0 compatibility.** Not performed — no spec compliance test run in this environment.
+6. **Assess Standard Agent Specification 0.2.0 compatibility.** Not performed — no spec conformance test run in this environment.
 7. **Productize a specialist only after the above passes.** Not applicable — no go/no-go decision taken.
+
+---
+
+## Corrections vs. the prior 2026-11-14 audit
+
+The previous snapshot of this file (branch `agent/quality-factory/hermes-unlimited-dev-19-evidence-audit`, commit `20b281e`) contained several claims that are **no longer accurate** against development HEAD `a80527c36524`:
+
+- **`unlimited/autonomy.py` is removed.** The prior audit attributed 9-step loops, SQLite checkpointing, stop conditions, and parallel execution to `unlimited/autonomy.py`. That module does not exist in the current tree. It has been replaced/refactored into `unlimited/screenplay_adapter.py` (ScreenplayAdapter step loop), `unlimited/adi.py` (AdiProvider/AdiOutcome delegability), `unlimited/socratic_council.py` (SocraticCouncil), and `unlimited/tools.py` (tool lifecycle).
+- **`unlimited/hermes_live_worker.py` is removed.** The prior audit cited it for HTTP streaming (#26). That module is gone; capacity #26 is marked `NOT ASSESSED` (not a gap claim) to avoid inventing evidence.
+- **Tester subset re-pinned to `a80527c36524`.** An earlier local run on `de005a4` (ADI v2026.1) reported 74 passed/34 subtests; that SHA is superseded. The audit above re-runs against `a80527c36524`: **88 passed / 24 subtests**.
+- **`HERMES_YOLO_MODE=1` default removed.** PR #24 (`402ffcd`) removed implicit `HERMES_YOLO_MODE=1`; it is included in the pinned development HEAD.
+
+---
 
 ## Limitations (explicit, no overclaim)
 
 - This is a **code + local-test audit**, not a production qualification. Everything marked `IMPLEMENTED_TESTED` is unit/integration-level and does not prove end-user outcomes.
-- Live acceptance, provider integration, cross-repo evidence, and live agent execution remain **unverified** in this environment.
-- Capability numbers 12, 13, 14 are `NOT ASSESSED`: absence of a dedicated Unlimited module is not proof of absence in Hermes upstream.
-- No new module was added and no runtime behavior was changed by this audit report.
+- Live acceptance, provider integration, cross-repo evidence, and live agent execution remain **unverified** in this environment (BLOCKED).
+- Capabilities 12, 13, 14, 27 are `NOT ASSESSED`: absence of a dedicated Unlimited module is not proof of absence in Hermes upstream.
+- The prior audit's capability mappings (01, 03, 11, 16, 21, 22, 26) were corrected for the 2026-11-13/14 refactor; see "Corrections vs. the prior 2026-11-14 audit".
+- No new runtime module was added and no runtime behavior was changed by this audit report.
 
-## Follow-up verification (2026-11-14; separate from original bounded audit)
+## Follow-up verification (for later runs)
 
-- Acer Hermes runtime reports Hermes Agent v0.22.7 (`b200f5bc60e3`), 92 registered tool names in its native Python environment; schema discovery exposed four `file`, two `web`, two `terminal`, and one `browser` tool definitions. Metadata discovery is not proof of execution permission.
-- `nsolland/world-commander` main tree `a6506fa722d460e448a2ecbb724e202262aa1059` includes skill registry, Hermes loop adapter and goal-verification test candidates. `nsolland/ai-bridge` main tree `eacd7a2e1b3466dedf802208f86a0ce451ad2cc4` includes model routing and Hermes Unlimited integration/test candidates. Neither source tree was run end to end in this addendum. T3 source remains unidentified.
-- `nsolland/hermes-unlimited-dev` already merged specialist factory via PR #20, development commit `e74bb336a8269d6a580f2018d393c4faf9b08e9b`. Candidate branch `6f576594535aa403eaa13aa169a8fb91797fddfe` has identical tree content relative to that development commit (`git diff --quiet` exit 0). Duplicate draft PR #23 was closed.
-- Acer local suite on that specialist branch with the existing JustYou module on PYTHONPATH: **192 tests passed, 2 skipped** (50.583s), exit 0. Specialist-only suite: **11 passed**, exit 0. Two skipped tests are not proof of production integration.
-- One bounded Hermes CLI read-only prompt using Nous Portal model `upstage/solar-mini4:free` returned exactly `VERIFIED`, exit 0. This is **one real model call** but not model comparison, service workflow, external effect or independent customer-outcome verification. Earlier attempts failed on CLI flags; the successful invocation used safe mode and no tool calls.
-- The mission runtime's default verifier key and in-process replay cache remain unqualified; a later branch `fix/hermes-preserve-operator-permissions-22` removes implicit `HERMES_YOLO_MODE=1`, but that change was not present in development at the original pinned base.
+- Live mission complete/interrupt/resume (timeout, 401/402/429, cross-tenant negatives) — requires a provisioned Hermes host with real accounts.
+- General vs domain-specific agent comparison on an identical customer-service workflow.
+- Standard Agent Specification 0.2.0 conformance tests.
+- Independent cross-repo evidence matrix (Hermes upstream, T3, World Commander, Unlimited).
+
+---
+
+*This audit is bounded, grounded, and audited. It corrects stale prior claims; it does not add requirements.*
