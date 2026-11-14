@@ -147,6 +147,54 @@ class LiveCustomerAcceptance(unittest.TestCase):
                     self.assertTrue(call("unlimited_service_publish", {
                         "company_id": "synthetic-company", "service_id": "brief", "title": "Brief",
                         "price_minor": 0, "currency": "NOK"})["published"])
+                    # Ember payload -> gateway authentication -> real JustYou
+                    # registry/session/signed binding -> native Hermes tool.
+                    from unlimited.ember_bridge import EmberBridge, RoomRoute
+                    from unlimited.runtime import ProviderStore
+                    import hmac
+                    import hashlib
+                    ingress_key = b"test-local-ingress-shared-key-32-bytes!"
+                    bridge_store = ProviderStore(settings["HERMES_UNLIMITED_REGISTRY_DB"],
+                        lambda p, t, i: (p == "synthetic-provider" and t == tenant
+                                          and i == identity
+                                          and JustYouVerifier(store, resolver, ctx.profile_name,
+                                                              settings["HERMES_UNLIMITED_JUSTYOU_SESSION_TOKEN"])
+                                          .authorize_provider_tenant(p, t, i)))
+                    bridge = EmberBridge(bridge_store,
+                        JustYouVerifier(store, resolver, ctx.profile_name, session.token),
+                        {"room-001": RoomRoute("synthetic-provider", tenant, "synthetic-company",
+                                               "brief", identity)}, ingress_key)
+                    ember_payload = {"room": {"id": "room-001", "name": "operations"},
+                                     "message": {"id": "message-001",
+                                                 "body": {"plain": "Test Hermes dispatch"}},
+                                     "user": {"id": "user-001", "name": "Operator"}}
+                    canonical = json.dumps(ember_payload, sort_keys=True, separators=(",", ":"),
+                                           ensure_ascii=False).encode()
+                    signature = hmac.new(ingress_key, canonical, hashlib.sha256).hexdigest()
+                    bridge_result = bridge.submit_to_hermes(
+                        ember_payload, signature, ctx.handlers["unlimited_service_dispatch"])
+                    self.assertEqual(bridge_result["state"], "running")
+                    self.assertFalse(bridge_result["executed"])
+                    self.assertTrue(bridge_result["task_id"])
+                    self.assertEqual(bridge_store.get_request("synthetic-provider", tenant,
+                        "synthetic-company", bridge_result["request"], identity)["state"], "running")
+                    # Signed ingress alone is insufficient without a valid
+                    # JustYou session, even for an otherwise mapped room.
+                    invalid_bridge = EmberBridge(bridge_store,
+                        JustYouVerifier(store, resolver, ctx.profile_name, "invalid-session"),
+                        bridge.routes, ingress_key)
+                    with self.assertRaises(PermissionError):
+                        invalid_bridge.submit_to_hermes(
+                            {**ember_payload, "message": {"id": "message-002",
+                              "body": {"plain": "Do not queue"}}},
+                            hmac.new(ingress_key, json.dumps(
+                                {**ember_payload, "message": {"id": "message-002",
+                                  "body": {"plain": "Do not queue"}}}, sort_keys=True,
+                                separators=(",", ":"), ensure_ascii=False).encode(),
+                                hashlib.sha256).hexdigest(),
+                            ctx.handlers["unlimited_service_dispatch"])
+
+
                     result = call("unlimited_service_request", {
                         "company_id": "synthetic-company", "service_id": "brief",
                         "request_id": "synthetic-request", "payload": {"test": True}})
