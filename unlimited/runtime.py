@@ -57,6 +57,7 @@ class ProviderStore:
                     state TEXT NOT NULL DEFAULT 'queued',
                     result TEXT,
                     task_id TEXT,
+                    assignee_profile TEXT,
                     attempts INTEGER NOT NULL DEFAULT 0,
                     created_at INTEGER NOT NULL,
                     PRIMARY KEY(provider, tenant, company, request),
@@ -84,6 +85,8 @@ class ProviderStore:
             columns = {row[1] for row in db.execute("PRAGMA table_info(requests)")}
             if "task_id" not in columns:
                 db.execute("ALTER TABLE requests ADD COLUMN task_id TEXT")
+            if "assignee_profile" not in columns:
+                db.execute("ALTER TABLE requests ADD COLUMN assignee_profile TEXT")
             if "attempts" not in columns:
                 db.execute("ALTER TABLE requests ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0")
 
@@ -167,34 +170,39 @@ class ProviderStore:
         self._ids(company, request)
         with self._db() as db:
             row = db.execute(
-                "SELECT service,payload,state,result,task_id,attempts FROM requests "
+                "SELECT service,payload,state,result,task_id,attempts,assignee_profile FROM requests "
                 "WHERE provider=? AND tenant=? AND company=? AND request=?",
                 (provider, tenant, company, request)).fetchone()
         if row is None:
             return None
         return {"request": request, "service": row[0], "payload": json.loads(row[1]),
                 "state": row[2], "result": json.loads(row[3]) if row[3] else None,
-                "task_id": row[4], "attempts": int(row[5] or 0)}
+                "task_id": row[4], "attempts": int(row[5] or 0),
+                "assignee_profile": row[6]}
 
-    def attach_task(self, provider, tenant, company, request, task_id, identity):
+    def attach_task(self, provider, tenant, company, request, task_id, identity, *, assignee_profile=None):
         self._authorize(provider, tenant, identity)
         self._ids(company, request)
         if not isinstance(task_id, str) or not re.fullmatch(r"[A-Za-z0-9._:-]{1,128}", task_id):
             raise ValueError("TASK_ID_INVALID")
+        if assignee_profile is not None:
+            self._ids(assignee_profile)
         with self._db() as db:
             updated = db.execute(
-                "UPDATE requests SET task_id=?,state='running',attempts=CASE WHEN attempts=0 THEN 1 ELSE attempts END "
+                "UPDATE requests SET task_id=?,assignee_profile=COALESCE(?,assignee_profile),state='running',attempts=CASE WHEN attempts=0 THEN 1 ELSE attempts END "
                 "WHERE provider=? AND tenant=? AND company=? AND request=? "
                 "AND (task_id IS NULL OR task_id=?)",
-                (task_id, provider, tenant, company, request, task_id)).rowcount
+                (task_id, assignee_profile, provider, tenant, company, request, task_id)).rowcount
         if updated != 1:
             raise ValueError("REQUEST_NOT_FOUND_OR_TASK_CONFLICT")
 
-    def recover_blocked_request(self, provider, tenant, company, request, new_task_id, identity, *, max_attempts=3):
+    def recover_blocked_request(self, provider, tenant, company, request, new_task_id, identity, *, max_attempts=3, assignee_profile=None):
         self._authorize(provider, tenant, identity)
         self._ids(company, request)
         if not isinstance(new_task_id, str) or not re.fullmatch(r"[A-Za-z0-9._:-]{1,128}", new_task_id):
             raise ValueError("TASK_ID_INVALID")
+        if assignee_profile is not None:
+            self._ids(assignee_profile)
         with self._db() as db:
             row = db.execute(
                 "SELECT state, task_id, attempts FROM requests "
@@ -211,9 +219,9 @@ class ProviderStore:
             if new_task_id == old_task_id:
                 raise ValueError("RECOVERY_REQUIRES_NEW_TASK_ID")
             db.execute(
-                "UPDATE requests SET task_id=?,state='running',attempts=? "
+                "UPDATE requests SET task_id=?,assignee_profile=COALESCE(?,assignee_profile),state='running',attempts=? "
                 "WHERE provider=? AND tenant=? AND company=? AND request=? AND state='blocked'",
-                (new_task_id, attempts + 1, provider, tenant, company, request),
+                (new_task_id, assignee_profile, attempts + 1, provider, tenant, company, request),
             )
         return {"request": request, "state": "running", "task_id": new_task_id,
                 "previous_task_id": old_task_id, "attempts": attempts + 1, "recovered": True}

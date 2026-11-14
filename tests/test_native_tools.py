@@ -240,6 +240,64 @@ class ToolIntegrationTests(unittest.TestCase):
         denied = self.call("unlimited_service_result", {"company_id": "company-a", "request_id": "req-1"})
         self.assertFalse(denied.get("found", False))
 
+    def test_subscription_first_dispatch_persists_profile_for_result(self):
+        from unlimited.subscription_dispatch import ProfileCapacity
+        from unlimited.runtime import ProviderStore
+
+        self.ctx.subscription_profile_capacities = lambda tenant, company, service: [
+            ProfileCapacity(tenant, "paid-profile", "hermes_paid", (service,), .99, 0),
+            ProfileCapacity(tenant, "customer-cli", "customer_owned", (service,), .93, 2),
+        ]
+        self.ctx.subscription_dispatch_policy = lambda *args: {
+            "min_quality": .9, "max_marginal_cost_minor": 3,
+            "allow_paid_fallback": True,
+        }
+        self.ctx.subscription_profile_evidence = lambda tenant, profile: {
+            "profile": profile, "verified": True,
+            "authority_granted": False, "binding_digest": "trusted-binding",
+        }
+        self.call("unlimited_company_create", {"company_id": "company-a", "display_name": "A"})
+        self.call("unlimited_service_publish", {
+            "company_id": "company-a", "service_id": "brief",
+            "title": "Brief", "price_minor": 0, "currency": "EUR"})
+        queued = self.call("unlimited_service_request", {
+            "company_id": "company-a", "service_id": "brief",
+            "request_id": "req-1", "payload": {"request": "brief"}})
+        self.assertEqual(queued["selected_profile"], "customer-cli")
+        self.assertEqual(self.submissions[0]["assignee"], "customer-cli")
+        self.assertFalse(queued["executed"])
+        result = self.call("unlimited_service_result", {
+            "company_id": "company-a", "request_id": "req-1"})
+        self.assertTrue(result["found"])
+        store = ProviderStore(self.settings["HERMES_UNLIMITED_REGISTRY_DB"],
+                              lambda p, t, i: p == "owner" and t == "tenant-a" and i == "@owner")
+        item = store.get_request("owner", "tenant-a", "company-a", "req-1", "@owner")
+        self.assertEqual(item["assignee_profile"], "customer-cli")
+
+    def test_paid_subscription_fallback_requires_host_approval(self):
+        from unlimited.subscription_dispatch import ProfileCapacity
+
+        self.ctx.subscription_profile_capacities = lambda tenant, company, service: [
+            ProfileCapacity(tenant, "paid-profile", "hermes_paid", (service,), .99, 1)
+        ]
+        self.ctx.subscription_dispatch_policy = lambda *args: {
+            "min_quality": .9, "max_marginal_cost_minor": 3,
+            "allow_paid_fallback": False,
+        }
+        self.ctx.subscription_profile_evidence = lambda *args: {
+            "profile": "paid-profile", "verified": True,
+            "authority_granted": False, "binding_digest": "trusted-binding",
+        }
+        self.call("unlimited_company_create", {"company_id": "company-a", "display_name": "A"})
+        self.call("unlimited_service_publish", {
+            "company_id": "company-a", "service_id": "brief",
+            "title": "Brief", "price_minor": 0, "currency": "EUR"})
+        denied = self.call("unlimited_service_request", {
+            "company_id": "company-a", "service_id": "brief",
+            "request_id": "req-2", "payload": {}})
+        self.assertFalse(denied["ok"])
+        self.assertEqual(self.submissions, [])
+
     def test_unavailable_kanban_keeps_request_for_retry(self):
         self.call("unlimited_company_create", {"company_id": "company-a", "display_name": "A"})
         self.call("unlimited_service_publish", {"company_id": "company-a", "service_id": "brief",

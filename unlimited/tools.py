@@ -265,30 +265,73 @@ def register_company_tools(ctx, scoped_secret, scoped_identity):
                     if item["task_id"] and item["state"] != "blocked":
                         return {"request": request_id, "state": item["state"],
                                 "task_id": item["task_id"], "executed": False}
+
+                    def enqueue(task_id, title):
+                        # Profiles and policy come from a trusted Hermes host,
+                        # never from model-supplied tool arguments.
+                        capacity_provider = getattr(ctx, "subscription_profile_capacities", None)
+                        if capacity_provider is None:
+                            response = adapter().enqueue(
+                                tenant=tenant, assignee=ctx.profile_name,
+                                task_id=task_id, title=title,
+                                body=json.dumps(item["payload"], sort_keys=True),
+                                identity_evidence=evidence)
+                            return {**response, "selected_profile": ctx.profile_name}
+                        policy_provider = getattr(ctx, "subscription_dispatch_policy", None)
+                        profile_evidence = getattr(ctx, "subscription_profile_evidence", None)
+                        if (not callable(capacity_provider) or not callable(policy_provider)
+                                or not callable(profile_evidence)):
+                            raise PermissionError("TRUSTED_SUBSCRIPTION_HOST_REQUIRED")
+                        from .subscription_dispatch import (
+                            choose_hermes_profile, enqueue_subscription_first,
+                        )
+                        profiles = capacity_provider(tenant, company_id, item["service"])
+                        policy = policy_provider(tenant, company_id, item["service"])
+                        if not isinstance(policy, dict):
+                            raise PermissionError("TRUSTED_SUBSCRIPTION_POLICY_REQUIRED")
+                        selected = choose_hermes_profile(
+                            profiles, tenant_id=tenant, task_kind=item["service"],
+                            min_quality=policy["min_quality"],
+                            max_marginal_cost_minor=policy["max_marginal_cost_minor"],
+                            allow_paid_fallback=policy.get("allow_paid_fallback", False),
+                        )
+                        scoped_evidence = profile_evidence(tenant, selected.profile)
+                        return enqueue_subscription_first(
+                            adapter(), profiles=[selected],
+                            identity_evidence_by_profile={selected.profile: scoped_evidence},
+                            tenant_id=tenant, task_kind=item["service"],
+                            min_quality=policy["min_quality"],
+                            max_marginal_cost_minor=policy["max_marginal_cost_minor"],
+                            task_id=task_id, title=title,
+                            body=json.dumps(item["payload"], sort_keys=True),
+                            allow_paid_fallback=policy.get("allow_paid_fallback", False),
+                        )
+
                     if item["task_id"] and item["state"] == "blocked":
                         next_attempt = int(item.get("attempts", 1)) + 1
                         if next_attempt > 3:
                             raise ValueError("MAX_RECOVERY_ATTEMPTS_EXCEEDED")
-                        response = adapter().enqueue(
-                            tenant=tenant, assignee=ctx.profile_name,
-                            task_id=f"{company_id}:{request_id}:retry-{next_attempt}",
-                            title=f"{company_id}/{item['service']}/{request_id} (recovery {next_attempt})",
-                            body=json.dumps(item["payload"], sort_keys=True),
-                            identity_evidence=evidence)
+                        response = enqueue(
+                            f"{company_id}:{request_id}:retry-{next_attempt}",
+                            f"{company_id}/{item['service']}/{request_id} (recovery {next_attempt})",
+                        )
                         recovered = store.recover_blocked_request(
                             provider, tenant, company_id, request_id,
-                            response["task_id"], identity)
-                        return {**recovered, "executed": False}
-                    response = adapter().enqueue(
-                        tenant=tenant, assignee=ctx.profile_name,
-                        task_id=f"{company_id}:{request_id}",
-                        title=f"{company_id}/{item['service']}/{request_id}",
-                        body=json.dumps(item["payload"], sort_keys=True),
-                        identity_evidence=evidence)
-                    store.attach_task(provider, tenant, company_id, request_id,
-                                      response["task_id"], identity)
+                            response["task_id"], identity,
+                            assignee_profile=response["selected_profile"])
+                        return {**recovered, "executed": False,
+                                "selected_profile": response["selected_profile"]}
+                    response = enqueue(
+                        f"{company_id}:{request_id}",
+                        f"{company_id}/{item['service']}/{request_id}",
+                    )
+                    store.attach_task(
+                        provider, tenant, company_id, request_id,
+                        response["task_id"], identity,
+                        assignee_profile=response["selected_profile"])
                     return {"request": request_id, "state": "running",
-                            "task_id": response["task_id"], "executed": False}
+                            "task_id": response["task_id"], "executed": False,
+                            "selected_profile": response["selected_profile"]}
 
                 if name == "unlimited_specialist_factory":
                     from dataclasses import asdict
@@ -437,8 +480,9 @@ def register_company_tools(ctx, scoped_secret, scoped_identity):
                         out = {"request": args["request_id"], "state": "queued",
                                "completed": False, "independently_verified": False}
                     else:
-                        result = adapter().result(tenant=tenant, assignee=ctx.profile_name,
-                                                  task_id=item["task_id"])
+                        result = adapter().result(
+                            tenant=tenant, assignee=item.get("assignee_profile") or ctx.profile_name,
+                            task_id=item["task_id"])
                         if result.get("found") is not True:
                             raise ValueError("SCOPED_TASK_NOT_FOUND")
                         store.record_task_result(provider, tenant, args["company_id"],
