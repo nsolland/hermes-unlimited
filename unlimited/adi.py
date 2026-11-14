@@ -144,6 +144,14 @@ class AdiProvider:
         self.dataset = CODEBOOK if dataset is None else dataset
         self.version = version
         self.offline = offline
+        # Normalise into an AdiDataset so version/corrupt handling is fail-closed.
+        # dataset=None keeps the version-pinned built-in slice (fallback path).
+        from unlimited.adi_dataset import AdiDataset
+
+        if isinstance(dataset, AdiDataset):
+            self._adi = dataset
+        else:
+            self._adi = AdiDataset(dataset if dataset is not None else CODEBOOK)
 
     def score(self, task_text):
         """Compute the advisory ADI signal for the given task text."""
@@ -160,9 +168,20 @@ class AdiProvider:
         }
         if self.offline:
             return AdiOutcome(**result)
-        if self.dataset is None:
+        if self._adi is None:
             return AdiOutcome(**result)
-        entry = _match_occupation(task_text, self.dataset)
+        if self._adi.is_corrupt:
+            return AdiOutcome(**result)
+        from unlimited.adi_dataset import AdiDatasetError
+
+        try:
+            rows = self._adi.rows()
+        except AdiDatasetError:
+            # Version mismatch -> fail closed: stay unmapped, never guess.
+            return AdiOutcome(**result)
+        if rows is None:
+            return AdiOutcome(**result)
+        entry = _match_occupation(task_text, rows)
         if entry is None:
             return AdiOutcome(**result)
         return AdiOutcome(
