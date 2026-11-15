@@ -114,13 +114,7 @@ class CommerceShadow:
                 self.payment.release(reservation)
                 return Outcome(purchase.intent_id, "delivery_rejected",
                                clearance.permit_ref, reservation)
-            settlement = self.payment.capture(reservation, delivery.evidence_ref)
-            if not settlement:
-                raise ValueError("Missing settlement reference")
-            return Outcome(purchase.intent_id, "settled_shadow", clearance.permit_ref,
-                           reservation, delivery.evidence_ref, settlement)
         except Exception:
-            # Release can itself fail; never claim that release succeeded.
             try:
                 self.payment.release(reservation)
             except Exception:
@@ -128,6 +122,18 @@ class CommerceShadow:
                                clearance.permit_ref, reservation)
             return Outcome(purchase.intent_id, "failed_released",
                            clearance.permit_ref, reservation)
+        # A capture timeout may mean funds moved. Never automatically release or
+        # retry an ambiguous capture; require independent reconciliation.
+        try:
+            settlement = self.payment.capture(reservation, delivery.evidence_ref)
+        except Exception:
+            return Outcome(purchase.intent_id, "manual_reconciliation_required",
+                           clearance.permit_ref, reservation, delivery.evidence_ref)
+        if not settlement:
+            return Outcome(purchase.intent_id, "manual_reconciliation_required",
+                           clearance.permit_ref, reservation, delivery.evidence_ref)
+        return Outcome(purchase.intent_id, "settled_shadow", clearance.permit_ref,
+                       reservation, delivery.evidence_ref, settlement)
 
     @staticmethod
     def _matches(p: Purchase, c: Clearance) -> bool:
