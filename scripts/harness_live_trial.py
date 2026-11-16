@@ -49,14 +49,14 @@ def invoke(root: Path, task: str, seed: int, arm: str, timeout: int, model: str 
     # Strict oracle rejects explanations, errors, and extra text.
     actual = stdout.strip()
     matched = status == 0 and actual == expected
-    row = Trial(task, arm, seed, matched, matched, matched, True, False, 0, elapsed, 0.0)
+    row = Trial(task, arm, seed, matched, matched, matched, matched, False, 0, elapsed, 0.0)
     record = {
         "task": task, "seed": seed, "arm": arm, "expected": expected,
         "actual": actual[:300], "exit_code": status, "seconds": round(elapsed, 3),
         "stdout_sha256": hashlib.sha256(stdout.encode()).hexdigest(),
         "stderr_sha256": hashlib.sha256(stderr.encode()).hexdigest(),
         "oracle_match": matched, "timed_out": status == 124,
-        "note": "cost_usd unavailable; seed is trial identifier, not guaranteed model RNG seed",
+        "note": "Cost and resume behavior unmeasured; scope refers only to exact output format; seed is trial identifier, not guaranteed model RNG seed",
     }
     return row, record
 
