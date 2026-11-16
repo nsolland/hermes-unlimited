@@ -1,0 +1,9 @@
+{
+  "requested_provider": "nous",
+  "requested_model": "MiniMax-M2.7",
+  "exit": 0,
+  "marker_seen_in_output": true,
+  "elapsed_seconds": 15.5,
+  "marker_sha256": "a671ddbfce7458b200b0276a6f6d00b05cf1139d5c3a80eecb574eb771b873ad",
+  "note": "A successful prompt-response marker only supports rule injection for this particular invocation; it does not attest every trial nor the actual model route."
+}
