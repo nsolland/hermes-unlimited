@@ -101,6 +101,7 @@ def main():
         parser.error("duplicate tasks are not allowed")
     if len(args.tasks)*2 > args.limit:
         parser.error("planned requests exceed --limit")
+    runner_hash_at_start = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     rows, raw = [], []
     with tempfile.TemporaryDirectory(prefix="hermes-harness-") as tmp:
         order = [(t, a) for t in args.tasks for a in ("baseline", "checker")]
@@ -122,7 +123,7 @@ def main():
         "protocol": "hermes-harness-mini-v2",
         "provider": args.provider,
         "model_explicitly_requested": True,
-        "runner_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        "runner_sha256": runner_hash_at_start,
         "tasks_sha256": hashlib.sha256(json.dumps(TASKS, sort_keys=True).encode()).hexdigest(),
         "python_version": sys.version.split()[0],
         "host_platform": platform.platform(),
