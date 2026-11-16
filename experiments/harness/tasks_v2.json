@@ -1,0 +1,102 @@
+[
+  {
+    "expected": "53",
+    "id": "binary",
+    "prompt": "Convert binary 110101 to decimal."
+  },
+  {
+    "expected": "14",
+    "id": "count",
+    "prompt": "How many multiples of 7 are strictly between 1 and 100?"
+  },
+  {
+    "expected": "5040",
+    "id": "factorial",
+    "prompt": "Compute factorial of 7."
+  },
+  {
+    "expected": "42",
+    "id": "gcd",
+    "prompt": "Compute the greatest common divisor of 84 and 126."
+  },
+  {
+    "expected": "FF",
+    "id": "hex",
+    "prompt": "Convert decimal integer 255 to uppercase hexadecimal."
+  },
+  {
+    "expected": "8",
+    "id": "length",
+    "prompt": "How many ASCII characters are in 'alphabet'?"
+  },
+  {
+    "expected": "5",
+    "id": "logic",
+    "prompt": "How many integers from 1 to 30 inclusive are divisible by 3 but not by 2?"
+  },
+  {
+    "expected": "0",
+    "id": "modulus",
+    "prompt": "Compute remainder when 1001 is divided by 13."
+  },
+  {
+    "expected": "703",
+    "id": "multiply",
+    "prompt": "Compute 37 times 19."
+  },
+  {
+    "expected": "YES",
+    "id": "palindrome",
+    "prompt": "Is the lowercase string 'racecar' a palindrome? Answer YES or NO."
+  },
+  {
+    "expected": "ODD",
+    "id": "parity",
+    "prompt": "Is 123456789 even or odd? Answer EVEN or ODD."
+  },
+  {
+    "expected": "8192",
+    "id": "power",
+    "prompt": "Compute 2 raised to the power 13."
+  },
+  {
+    "expected": "YES",
+    "id": "prime",
+    "prompt": "Is 97 a prime number? Answer YES or NO."
+  },
+  {
+    "expected": "147-nemul",
+    "id": "reverse",
+    "prompt": "Reverse the exact ASCII string 'lumen-741' character by character."
+  },
+  {
+    "expected": "2,3",
+    "id": "set",
+    "prompt": "For sets A={1,2,3} and B={2,3,4}, output intersection in ascending order, comma-separated."
+  },
+  {
+    "expected": "-3,0,8,8,14,19",
+    "id": "sort",
+    "prompt": "Sort these integers in increasing order: 19, -3, 8, 8, 0, 14. Return comma-separated numbers with no spaces."
+  },
+  {
+    "expected": "650",
+    "id": "squares",
+    "prompt": "Calculate the sum of i*i for integers i=1 through 12."
+  },
+  {
+    "expected": "124",
+    "id": "subtract",
+    "prompt": "Compute 10000 - 9876."
+  },
+  {
+    "expected": "140",
+    "id": "sum",
+    "prompt": "Compute 17 + 29 + 41 + 53."
+  },
+  {
+    "expected": "WEDNESDAY",
+    "id": "weekday",
+    "prompt": "If Monday is day 1, what weekday is day 10? Answer uppercase weekday."
+  }
+]
