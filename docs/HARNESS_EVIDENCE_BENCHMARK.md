@@ -39,3 +39,17 @@ Local check: `python -m unittest tests.test_harness_benchmark -v`. The public-co
 - `proof_present` is an input assertion, not a cryptographic proof verifier. The independent trial collector must verify proof custody before setting it true.
 - Do not use these advisory measurements as execution clearance.
 - A green unit test validates the scoring functions, not actual harness effectiveness.
+
+## Expanded reproducibility controls (v2)
+
+The trial CLI now requires explicit `--model` and `--provider`, and defines 20 deterministic tasks with exact independent oracles. The run manifest records task-suite and runner SHA-256 hashes, trial order seed, Python/host versions, per-invocation duration, exit status and output hashes. `--limit` caps the number of invocations and rejects duplicate tasks. A valid trial has exit code 0 and the exact expected stdout (no extra narrative).
+
+Example bounded smoke invocation:
+
+```bash
+PYTHONPATH=. python3 scripts/harness_live_trial.py \
+  --provider nous --model MiniMax-M2.7 --timeout 65 --seed 21 \
+  --tasks sum gcd --out /tmp/hermes-harness-v2-smoke.json
+```
+
+The explicit model/provider flags request configuration but **do not prove** which model actually responded. Neither token usage nor price, per-invocation `AGENTS.md` injection, concurrent machine load, model RNG seed, or restart behavior is independently attested. This is an experimental harness runner, not a causal harness-effect study. The next research gate requires all these confounds to be instrumented before production claims or a larger paid campaign. The 2026-11-16 pilot findings are in `experiments/harness/20261116_combined.json`.

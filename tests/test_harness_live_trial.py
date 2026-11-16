@@ -5,10 +5,15 @@ from pathlib import Path
 from unittest.mock import patch
 from types import SimpleNamespace
 
-from scripts.harness_live_trial import invoke, BASE_RULE, CHECK_RULE
+from scripts.harness_live_trial import invoke, BASE_RULE, CHECK_RULE, TASKS
 
 
 class HarnessLiveTrialTests(unittest.TestCase):
+    def test_extended_suite_has_20_unique_task_oracles(self):
+        self.assertEqual(len(TASKS), 20)
+        self.assertEqual(len(set(TASKS)), 20)
+        self.assertTrue(all(prompt and answer for prompt, answer in TASKS.values()))
+
     def test_oracle_success_and_variant_files(self):
         with tempfile.TemporaryDirectory() as temp:
             with patch("scripts.harness_live_trial.subprocess.run", return_value=SimpleNamespace(stdout="650\n", stderr="", returncode=0)):
