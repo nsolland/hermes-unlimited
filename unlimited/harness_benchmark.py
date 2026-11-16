@@ -21,7 +21,9 @@ class Trial:
     cost_usd: float
 
     def __post_init__(self):
-        if not self.task_id or not self.harness or isinstance(self.seed, bool) or not isinstance(self.seed, int):
+        if (not isinstance(self.task_id, str) or not self.task_id.strip()
+                or not isinstance(self.harness, str) or not self.harness.strip()
+                or isinstance(self.seed, bool) or not isinstance(self.seed, int)):
             raise ValueError("task_id, harness, integer seed required")
         for key in ("goal_met", "verification_passed", "proof_present", "scope_preserved", "resumed_correctly"):
             if not isinstance(getattr(self, key), bool):

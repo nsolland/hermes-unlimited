@@ -2,6 +2,8 @@
 
 Use on an isolated machine with an already configured Hermes CLI. This is
 experimental data collection, not production evaluation or permission.
+
+Run from the repository root: python3 -m scripts.harness_live_trial --help
 """
 import argparse
 import hashlib
