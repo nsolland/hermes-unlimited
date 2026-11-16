@@ -10,6 +10,21 @@ from scripts.harness_live_trial import TASKS
 
 
 class CheckpointTests(unittest.TestCase):
+    def setUp(self):
+        self.guard = patch("scripts.harness_batch_runner.inspect_host",
+                           return_value={"admissible": True, "reasons": []})
+        self.guard.start()
+        self.addCleanup(self.guard.stop)
+
+    def test_reject_busy_host(self):
+        with patch("scripts.harness_batch_runner.inspect_host",
+                   return_value={"admissible": False, "reasons": ["SWAP_PRESSURE"]}):
+            with tempfile.TemporaryDirectory() as temp:
+                args = SimpleNamespace(out=str(Path(temp)/"state.json"), model="m",
+                                       provider="p", timeout=5, order_seed=2, limit=40)
+                with self.assertRaisesRegex(RuntimeError, "SWAP_PRESSURE"):
+                    run(args)
+
     def test_atomic_checkpoint(self):
         with tempfile.TemporaryDirectory() as temp:
             p = Path(temp) / "nested" / "result.json"

@@ -7,6 +7,7 @@ import tempfile
 from pathlib import Path
 
 from scripts.harness_live_trial import TASKS, invoke
+from scripts.harness_preflight import inspect_host
 
 
 def atomic_save(path, data):
@@ -18,6 +19,9 @@ def atomic_save(path, data):
 
 def run(args):
     output = Path(args.out)
+    guard = inspect_host()
+    if not guard["admissible"]:
+        raise RuntimeError("host preflight rejected experiment: " + ",".join(guard["reasons"]))
     if not args.model.strip() or not args.provider.strip():
         raise ValueError("model and provider must be explicit")
     if args.timeout < 5 or args.timeout > 180:

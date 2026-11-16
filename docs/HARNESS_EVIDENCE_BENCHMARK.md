@@ -53,3 +53,9 @@ PYTHONPATH=. python3 scripts/harness_live_trial.py \
 ```
 
 The explicit model/provider flags request configuration but **do not prove** which model actually responded. Neither token usage nor price, per-invocation `AGENTS.md` injection, concurrent machine load, model RNG seed, or restart behavior is independently attested. This is an experimental harness runner, not a causal harness-effect study. The next research gate requires all these confounds to be instrumented before production claims or a larger paid campaign. The 2026-11-16 pilot findings are in `experiments/harness/20261116_combined.json`.
+
+## 20-task stress trial: terminated because the host was not suitable
+
+The sequential 40-invocation attempt using an explicit model request and a **20-second** per-invocation timeout was stopped after **17 of 40** observations. The resource preflight inspected the same machine and failed (`HIGH_LOAD`, `SWAP_PRESSURE`): four CPUs, one-minute load ~10.53, swap usage ~77.2%. This run is **invalid for harness effectiveness** and incomplete, not a 40-trial dataset. The incomplete observations, source-checkpoint hash and preflight evidence are preserved in `experiments/harness/20261116_full20_aborted.json`. Never count the remaining 23 unrun jobs as failures or wins.
+
+The new `scripts/harness_preflight.py` refuses to start a checkpointed experiment if the Linux host exceeds its load/swap thresholds or lacks memory headroom; this only checks resource availability, not independent workload isolation. `scripts/harness_batch_runner.py` is deliberately fail-closed on failed preflight. A fresh future controlled run must use a new output path, with sufficient wall-clock allowance calibrated from idle startup timings, model/provider routing evidence, independent rules-injection witness, and adequate replicated trials. The checkpoint resume mechanism is operational recovery, **not** statistical equivalence across different host environments.
