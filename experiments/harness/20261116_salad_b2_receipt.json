@@ -1,0 +1,16 @@
+{
+  "estimated_total_ceiling_usd": 0.5,
+  "group": "hermes-harness-salad-1116-b2",
+  "image_runtime_digest_attested": false,
+  "image_tag": "python:3.12-alpine",
+  "operator_result_sha256": "0c7d1aebf9d33101c5a3e4a1e60b6b412d3c77f5464f4c8dc6a690a190b5486f",
+  "organization": "valoresearch",
+  "project": "exup",
+  "provider_result_sha256": "0c7d1aebf9d33101c5a3e4a1e60b6b412d3c77f5464f4c8dc6a690a190b5486f",
+  "scientific_scope": "instruction-only, NOT Hermes CLI",
+  "source_commit": "ae37924d8d872942ed4bc801f5c4fbe5c2087f76",
+  "started": "2026-11-16T22:30:04Z",
+  "stopped": true,
+  "task_manifest_sha256": "8623d4fa55a7ec385ecd702ddc840941dc36556532f678cee43ece62517d96f7",
+  "worker_source_sha256": "37282563e1a42edef46f57a2ccc667bd47f6da9491e458be624281692fceeb6c"
+}
