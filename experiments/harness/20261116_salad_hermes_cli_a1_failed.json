@@ -1,0 +1,40 @@
+{
+  "actual_execution_environment": "SALAD",
+  "all_successful": false,
+  "canary_sha256": "326cfac0bfc2b3487c036fbc3746cd7ac9fafa350be4c525d8ee2c56555897ae",
+  "experiment": "HERMES_CLI_SALAD_SMOKE_01",
+  "hermes_cli_present": true,
+  "model_requested": "qwen3.5-9b",
+  "notes": [
+    "Official container tag, runtime image digest not independently attested",
+    "One bounded smoke, not a 20-task statistical experiment",
+    "Project rules injected via AGENTS.md, not merely API prompt text"
+  ],
+  "provider_requested": "custom:salad",
+  "results": {
+    "baseline": {
+      "elapsed_seconds": 2.575,
+      "exact_match": false,
+      "exit": 1,
+      "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "response": "",
+      "stderr_tail": "_directory(home / subdir, create=not managed, secure=not managed, home=home)\n    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/hermes/hermes_cli/config_home.py\", line 47, in _ensure_directory\n    raise HomeInitializationError(\n    ...<5 lines>...\n    ) from exc\nhermes_cli.config_home.HomeInitializationError: Cannot initialize Hermes directory /tmp/hermes_salad_cli_smoke/home/cron: [Errno 13] Permission denied: '/tmp/hermes_salad_cli_smoke/home/cron'. Check the directory/link target, mount availability and access permissions; restore the mount or repair the link before retrying. Hermes has not replaced the link or created its missing target."
+    },
+    "canary": {
+      "elapsed_seconds": 2.751,
+      "exact_match": false,
+      "exit": 1,
+      "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "response": null,
+      "stderr_tail": "_directory(home / subdir, create=not managed, secure=not managed, home=home)\n    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/hermes/hermes_cli/config_home.py\", line 47, in _ensure_directory\n    raise HomeInitializationError(\n    ...<5 lines>...\n    ) from exc\nhermes_cli.config_home.HomeInitializationError: Cannot initialize Hermes directory /tmp/hermes_salad_cli_smoke/home/cron: [Errno 13] Permission denied: '/tmp/hermes_salad_cli_smoke/home/cron'. Check the directory/link target, mount availability and access permissions; restore the mount or repair the link before retrying. Hermes has not replaced the link or created its missing target."
+    },
+    "checker": {
+      "elapsed_seconds": 2.762,
+      "exact_match": false,
+      "exit": 1,
+      "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "response": "",
+      "stderr_tail": "_directory(home / subdir, create=not managed, secure=not managed, home=home)\n    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/hermes/hermes_cli/config_home.py\", line 47, in _ensure_directory\n    raise HomeInitializationError(\n    ...<5 lines>...\n    ) from exc\nhermes_cli.config_home.HomeInitializationError: Cannot initialize Hermes directory /tmp/hermes_salad_cli_smoke/home/cron: [Errno 13] Permission denied: '/tmp/hermes_salad_cli_smoke/home/cron'. Check the directory/link target, mount availability and access permissions; restore the mount or repair the link before retrying. Hermes has not replaced the link or created its missing target."
+    }
+  }
+}

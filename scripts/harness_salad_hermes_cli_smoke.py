@@ -59,7 +59,15 @@ def main():
     isolated=Path("/tmp/hermes_salad_cli_smoke")
     home=isolated/"home"
     (home).mkdir(parents=True,exist_ok=True)
+    # Official image can use a different UID inside its CLI launcher. Prepare
+    # only this experiment's new directories for multi-user write access.
+    for rel in (isolated, home, home / "cron", home / "sessions", home / "logs", home / "memory"):
+        rel.mkdir(parents=True, exist_ok=True)
+        rel.chmod(0o777)
     os.environ["HERMES_HOME"]=str(home)
+    receipt["operator_uid"] = os.getuid()
+    receipt["home_writable"] = os.access(home, os.W_OK)
+    receipt["cron_precreated"] = (home / "cron").is_dir()
     os.environ["HERMES_NO_UPDATE_CHECK"]="1"
     config='''model:
   provider: custom:salad
@@ -76,6 +84,7 @@ providers:
     for name in ("baseline","checker","canary"):
         d=isolated/name
         d.mkdir(parents=True,exist_ok=True)
+        d.chmod(0o777)
         dirs[name]=d
     base="Answer only with the requested result. No explanation.\n"
     (dirs["baseline"]/"AGENTS.md").write_text(base)
