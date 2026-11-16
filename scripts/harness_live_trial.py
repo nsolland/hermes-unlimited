@@ -113,8 +113,11 @@ def main():
     summary = summarize(rows)
     for metrics in summary.values():
         metrics["mean_cost_usd"] = None  # no API cost capture in CLI trial
+        metrics["mean_interventions"] = None  # unmeasured, not zero
+        metrics["resume_rate"] = None  # resume never exercised
     paired = paired_delta(rows, "baseline", "checker")
     paired["cost_usd_delta"] = None
+    paired["interventions_delta"] = None
     payload = {
         "protocol": "hermes-harness-mini-v2",
         "provider": args.provider,
