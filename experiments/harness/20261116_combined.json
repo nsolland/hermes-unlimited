@@ -1,0 +1,37 @@
+{
+  "average_runtime_delta_seconds": 8.32,
+  "completion_rate_delta_checker_minus_baseline": -0.25,
+  "conclusion": "No demonstrated benefit. Higher timeout fraction for checker is exploratory, confounded, and not causally attributable.",
+  "data_sources": [
+    "20261116_pilot.json",
+    "20261116_replication.json"
+  ],
+  "date": "2026-11-16",
+  "limitations": [
+    "The 11/12 seeds only randomize task order; model RNG seed was not pinned",
+    "Model version/default provider not pinned or recorded per invocation",
+    "Concurrent unrelated Hermes workloads were present on Mac",
+    "No direct proof that AGENTS.md content was present in each model context",
+    "Cost, interventions, restart and side effects were not measured",
+    "Only four elementary tasks repeated twice, no significance or causal inference"
+  ],
+  "n_pairings": 8,
+  "n_task_order_seeds": 2,
+  "n_unique_tasks": 4,
+  "summary": {
+    "baseline": {
+      "average_runtime_seconds": 32.396,
+      "completion_rate": 0.75,
+      "correct": 6,
+      "n": 8,
+      "timeouts": 1
+    },
+    "checker": {
+      "average_runtime_seconds": 40.716,
+      "completion_rate": 0.5,
+      "correct": 4,
+      "n": 8,
+      "timeouts": 4
+    }
+  }
+}
