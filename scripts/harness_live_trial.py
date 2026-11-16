@@ -7,7 +7,6 @@ import argparse
 import hashlib
 import json
 import random
-import re
 import subprocess
 import tempfile
 import time
@@ -81,6 +80,11 @@ def main():
             rows.append(row)
             raw.append(record)
             print(f"{task} {arm} exit={record['exit_code']} correct={record['oracle_match']} time={record['seconds']}s", flush=True)
+    summary = summarize(rows)
+    for metrics in summary.values():
+        metrics["mean_cost_usd"] = None  # no API cost capture in CLI trial
+    paired = paired_delta(rows, "baseline", "checker")
+    paired["cost_usd_delta"] = None
     payload = {
         "protocol": "hermes-harness-mini-v1",
         "tasks": sorted(args.tasks),
@@ -89,8 +93,8 @@ def main():
         "model": args.model or "local Hermes default (not pinned)",
         "costs_measured": False,
         "records": raw,
-        "summary": summarize(rows),
-        "paired": paired_delta(rows, "baseline", "checker"),
+        "summary": summary,
+        "paired": paired,
     }
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     Path(args.out).write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
