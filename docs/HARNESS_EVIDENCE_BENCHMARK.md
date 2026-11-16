@@ -73,3 +73,13 @@ Three independent dedicated Salad CPU container groups completed 20 paired tasks
 Canonical source and receipts: `experiments/harness/20261116_salad_{a1,b2,c2}_{raw,receipt,verified}.json` plus `20261116_salad_three_replica_analysis.json`. Each round's receipt and exact-oracle scoring are independently verified by `scripts/harness_salad_verify.py`; cluster-bootstrap summary by `scripts/harness_salad_replicates.py`. One attempted group (`b1`) was stopped during allocation without model execution, and must not be counted as a research run.
 
 **Remaining scientific limitation:** No backend model-weight or host attestation, no controlled internal model RNG, and no test of full Hermes runtime state/memory/recovery. The 20 tasks are mostly elementary and were not an independently sampled population. This result tests instruction sensitivity only; it cannot establish harness-engineering effectiveness in complex agent tasks.
+
+## Attempted real Hermes CLI inside Salad: runtime blocker
+
+A separate three-stage smoke on the official `nousresearch/hermes-agent:latest` Salad image tested whether the **actual Hermes CLI** could load `AGENTS.md` rules. This is separate from the successfully completed 120-call direct Gateway comparison.
+
+- `hermes-cli-salad-1116-a1`: Hermes binary present, but all three invocations exited before model inference because the isolated HERMES_HOME could not create its `cron` directory. Provider log and confirmed stop are preserved.
+- `hermes-cli-salad-1116-b1`: Precreating writable directories exposed the stricter Hermes gateway ownership requirement. All three attempts failed before inference because the root-created HERMES_HOME was owned by UID 0, but Hermes expected UID 10000. Provider log and confirmed stop are preserved.
+- `hermes-cli-salad-1116-c1`: Source revision changed the isolated directory owner to the expected UID 10000; Salad failed to allocate the new instance within the 240-second gate. **No model invocation happened.** Shutdown verified.
+
+All three dedicated CLI groups and all four direct Gateway groups are stopped with zero running replicas. Official image index digest observed at registry at the time: `sha256:d6746a084e9341baada483e3d6210444d3c1aeb7c130f0915150065fb2851459`; runtime image digest remains unattested. No production changes were made. The full Hermes CLI harness on Salad has therefore **not been validated**; the direct Gateway result must not be misrepresented as Hermes runtime evidence.
