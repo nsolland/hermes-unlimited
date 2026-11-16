@@ -1,0 +1,16 @@
+{
+  "estimated_total_ceiling_usd": 0.5,
+  "group": "hermes-cli-salad-1116-b1",
+  "image_runtime_digest_attested": false,
+  "image_tag": "nousresearch/hermes-agent:latest",
+  "operator_result_sha256": "ee1026d12299f2ce2d817747900aae21663018179bcbc8330320db0c0874fdd4",
+  "organization": "valoresearch",
+  "project": "exup",
+  "provider_result_sha256": "ee1026d12299f2ce2d817747900aae21663018179bcbc8330320db0c0874fdd4",
+  "registry_index_digest_seen": "sha256:d6746a084e9341baada483e3d6210444d3c1aeb7c130f0915150065fb2851459",
+  "scientific_scope": "real Hermes CLI Salad smoke, not full benchmark",
+  "source_commit": "0cb46414e38d5ef82d4ae1df58b81f454dbd3c0c",
+  "started": "2026-11-16T22:50:10Z",
+  "stopped": true,
+  "worker_source_sha256": "75275f87a112cd02590a8a1bf59a5105b1ec2c537a750a74fa9063d717978d8a"
+}

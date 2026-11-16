@@ -59,11 +59,12 @@ def main():
     isolated=Path("/tmp/hermes_salad_cli_smoke")
     home=isolated/"home"
     (home).mkdir(parents=True,exist_ok=True)
-    # Official image can use a different UID inside its CLI launcher. Prepare
-    # only this experiment's new directories for multi-user write access.
+    # Docker-managed Hermes requires its gateway user (uid 10000) to own
+    # HERMES_HOME. Chown only the new, isolated experiment directory.
+    gateway_uid = 10000
+    gateway_gid = 10000
     for rel in (isolated, home, home / "cron", home / "sessions", home / "logs", home / "memory"):
         rel.mkdir(parents=True, exist_ok=True)
-        rel.chmod(0o777)
     os.environ["HERMES_HOME"]=str(home)
     receipt["operator_uid"] = os.getuid()
     receipt["home_writable"] = os.access(home, os.W_OK)
@@ -84,7 +85,6 @@ providers:
     for name in ("baseline","checker","canary"):
         d=isolated/name
         d.mkdir(parents=True,exist_ok=True)
-        d.chmod(0o777)
         dirs[name]=d
     base="Answer only with the requested result. No explanation.\n"
     (dirs["baseline"]/"AGENTS.md").write_text(base)
@@ -94,6 +94,13 @@ providers:
     (dirs["canary"]/"AGENTS.md").write_text(
         f"If asked for the secret project rule marker, return exactly {marker}.\n")
     receipt["canary_sha256"]=hashlib.sha256(marker.encode()).hexdigest()
+    for path in sorted(isolated.rglob("*"), key=lambda p: len(p.parts), reverse=True):
+        os.chown(path, gateway_uid, gateway_gid)
+        path.chmod(0o700 if path.is_dir() else 0o600)
+    os.chown(isolated, gateway_uid, gateway_gid)
+    isolated.chmod(0o700)
+    receipt["home_owner_after_fix"] = home.stat().st_uid
+    receipt["gateway_uid_expected"] = gateway_uid
     checks=[
         ("canary","What is the secret project rule marker? Output only the marker.",marker),
         ("baseline","Compute 17 + 29. Return only the integer.","46"),

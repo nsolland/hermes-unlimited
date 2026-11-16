@@ -1,0 +1,43 @@
+{
+  "actual_execution_environment": "SALAD",
+  "all_successful": false,
+  "canary_sha256": "c0044d5c008b640f893f88506a91d6f78e38a98caef865170fded956ecb35662",
+  "cron_precreated": true,
+  "experiment": "HERMES_CLI_SALAD_SMOKE_01",
+  "hermes_cli_present": true,
+  "home_writable": true,
+  "model_requested": "qwen3.5-9b",
+  "notes": [
+    "Official container tag, runtime image digest not independently attested",
+    "One bounded smoke, not a 20-task statistical experiment",
+    "Project rules injected via AGENTS.md, not merely API prompt text"
+  ],
+  "operator_uid": 0,
+  "provider_requested": "custom:salad",
+  "results": {
+    "baseline": {
+      "elapsed_seconds": 1.329,
+      "exact_match": false,
+      "exit": 1,
+      "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "response": "",
+      "stderr_tail": "\u26a0 install out of sync (pnpm: not installed or outdated) \u2014 this docker-managed install must rebuild the artifact to fix\nError: Gateway inaccessible: unsafe_control_path (/tmp/hermes_salad_cli_smoke/home is owned by uid 0, expected uid 10000 (gateway user); chown it to the gateway user)"
+    },
+    "canary": {
+      "elapsed_seconds": 1.395,
+      "exact_match": false,
+      "exit": 1,
+      "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "response": null,
+      "stderr_tail": "\u26a0 install out of sync (pnpm: not installed or outdated) \u2014 this docker-managed install must rebuild the artifact to fix\nError: Gateway inaccessible: unsafe_control_path (/tmp/hermes_salad_cli_smoke/home is owned by uid 0, expected uid 10000 (gateway user); chown it to the gateway user)"
+    },
+    "checker": {
+      "elapsed_seconds": 1.295,
+      "exact_match": false,
+      "exit": 1,
+      "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "response": "",
+      "stderr_tail": "\u26a0 install out of sync (pnpm: not installed or outdated) \u2014 this docker-managed install must rebuild the artifact to fix\nError: Gateway inaccessible: unsafe_control_path (/tmp/hermes_salad_cli_smoke/home is owned by uid 0, expected uid 10000 (gateway user); chown it to the gateway user)"
+    }
+  }
+}
