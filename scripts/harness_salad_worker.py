@@ -87,7 +87,9 @@ def run():
         raise RuntimeError("DUPLICATE_TASK_IDS")
     task_sha256 = hashlib.sha256(source.read_bytes()).hexdigest()
     order = [(i, arm) for i in range(20) for arm in ("baseline", "checker")]
-    rng_seed = 1116
+    rng_seed = int(os.environ.get("HERMES_HARNESS_ORDER_SEED", "1116"))
+    if not (1 <= rng_seed < 2**31):
+        raise RuntimeError("INVALID_ORDER_SEED")
     random.Random(rng_seed).shuffle(order)
     started = time.monotonic()
     results = []
