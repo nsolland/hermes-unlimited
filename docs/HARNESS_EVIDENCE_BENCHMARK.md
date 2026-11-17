@@ -101,3 +101,18 @@ Observed task interactions: an independent verification instruction improves the
 This **does not establish an internal neural mechanism**. It helps separate answer-format failure, instruction-sensitive choice of calculation and task-specific interference, but cannot inspect attention, intermediate residual states, or causal circuits. The tasks were selected based on prior discrepancies, so this is exploration not unbiased confirmation. Further counterfactual paraphrasing and model activation interventions are needed. Estimated gateway model cost from returned usage: $0.00061293, excluding Salad container cost.
 
 Evidence: `20261117_mechanism_{raw,receipt,verified}.json`; scorer: `scripts/harness_salad_mechanism_verify.py`.
+
+## Paraphrase counterfactual: same arithmetic, different instruction response (2026-11-17)
+
+A follow-up Salad Gateway test rephrased **two identical underlying numerical problems** three ways each, crossing four instruction arms with three repeated invocations (72 recorded calls in one separately attested completed run). The study was initiated because the original experiment showed a stable reversal between divisibility and sum-of-squares questions. This is a *posthoc exploratory* test, not neural activation evidence.
+
+- `squares`, original phrasing: baseline **3/3**, verify **0/3**, decompose **0/3**. Exponent format: baseline **3/3**, verify **1/3**, decompose **0/3**. Set/sum phrasing: baseline **2/3**, verify **3/3**, decompose **3/3**. Thus the sign of the verification effect on the same numeric task reverses after rewording.
+- `logic`, original phrasing: baseline **0/3**, verify **3/3**. An equivalent "odd multiples of 3" paraphrase gave verify **0/3**, while the format-oriented instruction gave **3/3**. A modular arithmetic paraphrase gave **0/3** in all four arms.
+- Overall: baseline **8/18**, verify **7/18**, concise-format instruction **9/18**, decompose **3/18**. None of these global differences establishes a generalizable benefit or harm.
+- All 72 reported model `qwen3.5-9b`, no API errors, provider result SHA-256 independently matched, and Salad group `hermes-harness-paraphrase-1117-a2` independently confirmed stopped. Returned usage estimates **$0.00033462** for this recovered run, excluding container charges.
+
+**Custody note:** The Mac control worker restarted during the container run. The Salad group was recovered from cloud logs and explicitly stopped. Logs showed two 72-response payloads because the container group ran the worker more than once despite its configured one-shot policy. Only the second payload has a matching recovered provider header SHA-256 and is used in the verified analysis; the first payload is **excluded from scientific claims**. The initial group `a1` never allocated and was also stopped. This demonstrates a real custody/restart limitation in the experiment harness itself.
+
+The controlled inference supports a narrower hypothesis: prompt surface features and instruction content interact to select different response behavior. It **cannot** prove which hidden features, neurons, heads, layers, or calculation algorithms mediate the effect. That requires instrumented open weights, layer-resolved state comparisons and causal interventions with same-task and unrelated-task controls.
+
+Evidence: `experiments/harness/20261117_paraphrase_{raw,receipt,verified}.json`, independent verifier `scripts/harness_salad_paraphrase_verify.py`.

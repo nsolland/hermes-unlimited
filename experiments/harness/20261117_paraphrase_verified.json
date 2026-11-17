@@ -1,0 +1,238 @@
+{
+  "by_arm": {
+    "baseline": {
+      "errors": 0,
+      "exact": 8,
+      "final_semantic": 8,
+      "mean_tokens_in": 57.0,
+      "mean_tokens_out": 3.11,
+      "n": 18
+    },
+    "decompose": {
+      "errors": 0,
+      "exact": 3,
+      "final_semantic": 3,
+      "mean_tokens_in": 76.0,
+      "mean_tokens_out": 3.44,
+      "n": 18
+    },
+    "length_control": {
+      "errors": 0,
+      "exact": 9,
+      "final_semantic": 9,
+      "mean_tokens_in": 78.0,
+      "mean_tokens_out": 3.0,
+      "n": 18
+    },
+    "verify": {
+      "errors": 0,
+      "exact": 7,
+      "final_semantic": 7,
+      "mean_tokens_in": 80.0,
+      "mean_tokens_out": 3.0,
+      "n": 18
+    }
+  },
+  "by_task": {
+    "logic": {
+      "modular": {
+        "baseline": {
+          "distinct_answers": [
+            "0"
+          ],
+          "exact": 0,
+          "final_semantic": 0
+        },
+        "decompose": {
+          "distinct_answers": [
+            "0"
+          ],
+          "exact": 0,
+          "final_semantic": 0
+        },
+        "length_control": {
+          "distinct_answers": [
+            "0"
+          ],
+          "exact": 0,
+          "final_semantic": 0
+        },
+        "verify": {
+          "distinct_answers": [
+            "0"
+          ],
+          "exact": 0,
+          "final_semantic": 0
+        }
+      },
+      "odd_multiples": {
+        "baseline": {
+          "distinct_answers": [
+            "6"
+          ],
+          "exact": 0,
+          "final_semantic": 0
+        },
+        "decompose": {
+          "distinct_answers": [
+            "10"
+          ],
+          "exact": 0,
+          "final_semantic": 0
+        },
+        "length_control": {
+          "distinct_answers": [
+            "5"
+          ],
+          "exact": 3,
+          "final_semantic": 3
+        },
+        "verify": {
+          "distinct_answers": [
+            "9"
+          ],
+          "exact": 0,
+          "final_semantic": 0
+        }
+      },
+      "original": {
+        "baseline": {
+          "distinct_answers": [
+            "10"
+          ],
+          "exact": 0,
+          "final_semantic": 0
+        },
+        "decompose": {
+          "distinct_answers": [
+            "2",
+            "4"
+          ],
+          "exact": 0,
+          "final_semantic": 0
+        },
+        "length_control": {
+          "distinct_answers": [
+            "10"
+          ],
+          "exact": 0,
+          "final_semantic": 0
+        },
+        "verify": {
+          "distinct_answers": [
+            "5"
+          ],
+          "exact": 3,
+          "final_semantic": 3
+        }
+      }
+    },
+    "squares": {
+      "exponent": {
+        "baseline": {
+          "distinct_answers": [
+            "650"
+          ],
+          "exact": 3,
+          "final_semantic": 3
+        },
+        "decompose": {
+          "distinct_answers": [
+            "3654"
+          ],
+          "exact": 0,
+          "final_semantic": 0
+        },
+        "length_control": {
+          "distinct_answers": [
+            "650"
+          ],
+          "exact": 3,
+          "final_semantic": 3
+        },
+        "verify": {
+          "distinct_answers": [
+            "606",
+            "650"
+          ],
+          "exact": 1,
+          "final_semantic": 1
+        }
+      },
+      "original": {
+        "baseline": {
+          "distinct_answers": [
+            "650"
+          ],
+          "exact": 3,
+          "final_semantic": 3
+        },
+        "decompose": {
+          "distinct_answers": [
+            "1012",
+            "506"
+          ],
+          "exact": 0,
+          "final_semantic": 0
+        },
+        "length_control": {
+          "distinct_answers": [
+            "650"
+          ],
+          "exact": 3,
+          "final_semantic": 3
+        },
+        "verify": {
+          "distinct_answers": [
+            "546"
+          ],
+          "exact": 0,
+          "final_semantic": 0
+        }
+      },
+      "sigma": {
+        "baseline": {
+          "distinct_answers": [
+            "65",
+            "650"
+          ],
+          "exact": 2,
+          "final_semantic": 2
+        },
+        "decompose": {
+          "distinct_answers": [
+            "650"
+          ],
+          "exact": 3,
+          "final_semantic": 3
+        },
+        "length_control": {
+          "distinct_answers": [
+            "65"
+          ],
+          "exact": 0,
+          "final_semantic": 0
+        },
+        "verify": {
+          "distinct_answers": [
+            "650"
+          ],
+          "exact": 3,
+          "final_semantic": 3
+        }
+      }
+    }
+  },
+  "limitations": [
+    "Posthoc task selection",
+    "Paraphrase variation is not a direct neural intervention",
+    "Model RNG and backend hardware not pinned",
+    "Salad Gateway, not Hermes CLI"
+  ],
+  "model_returned": [
+    "qwen3.5-9b"
+  ],
+  "n": 72,
+  "source_commit": "7970ebd721b41b793abdd02114623be20666cfbb",
+  "stop_confirmed": true
+}

@@ -1,0 +1,9 @@
+{
+  "group": "hermes-harness-paraphrase-1117-a2",
+  "note": "Salad group automatically re-executed worker; unplanned runs not independent pre-registered replications",
+  "provider_result_sha256": "be186bf4863e71281bd822d371b06959472776b32d75571a10797102748e9af8",
+  "recovered_from": "Salad log CHUNK digest verified; START marker not present",
+  "run_index": 2,
+  "source_commit": "7970ebd721b41b793abdd02114623be20666cfbb",
+  "stopped": true
+}
