@@ -83,3 +83,21 @@ A separate three-stage smoke on the official `nousresearch/hermes-agent:latest` 
 - `hermes-cli-salad-1116-c1`: Source revision changed the isolated directory owner to the expected UID 10000; Salad failed to allocate the new instance within the 240-second gate. **No model invocation happened.** Shutdown verified.
 
 All three dedicated CLI groups and all four direct Gateway groups are stopped with zero running replicas. Official image index digest observed at registry at the time: `sha256:d6746a084e9341baada483e3d6210444d3c1aeb7c130f0915150065fb2851459`; runtime image digest remains unattested. No production changes were made. The full Hermes CLI harness on Salad has therefore **not been validated**; the direct Gateway result must not be misrepresented as Hermes runtime evidence.
+
+## Mechanism decomposition: 2026-11-17 Salad gateway experiment
+
+A new *exploratory behavioral* ablation probed six preselected tasks (logic, sum of squares, multiples-of-seven count, modulus, weekday, sum) using five instruction variants, four repetitions each: **120 actual model calls**, all reporting `qwen3.5-9b` and no API errors. Every pair of `task/arm/replicate` was independently re-scored against the unmodified task oracle, with output and instruction SHA-256 checks and verified Salad stop receipt (`hermes-harness-mechanism-1117-a1`). Source worker commit: `aab9c963ef7aa22ecec7a7c1d9d436eb2baf9b2b`.
+
+| Instruction arm | Exact answers /24 | Correct final line /24 | Average completion tokens |
+| --- | ---: | ---: | ---: |
+| Baseline | 8 | 8 | 3.42 |
+| Additional concise-format instruction | 12 | 12 | 3.38 |
+| Decompose into elementary operations | 8 | 8 | 3.29 |
+| Independent verification | 7 | 11 | 11.50 |
+| Two-method self-consistency | 5 | 5 | 29.29 |
+
+Observed task interactions: an independent verification instruction improves the *logic* task from 0/4 exact baseline to 3/4, but reduces *squares* from 4/4 to 0/4. Extra output-format instruction rescues *count* from 0/4 to 4/4 without changing *squares*. Decomposition also rescues count (4/4) but degrades squares (0/4). Two-method self-consistency reduces simple sum from 4/4 to 0/4. Verification yields the numerically correct last line for modulus in 4/4 cases but wraps it with extra prose, causing strict-format failure.
+
+This **does not establish an internal neural mechanism**. It helps separate answer-format failure, instruction-sensitive choice of calculation and task-specific interference, but cannot inspect attention, intermediate residual states, or causal circuits. The tasks were selected based on prior discrepancies, so this is exploration not unbiased confirmation. Further counterfactual paraphrasing and model activation interventions are needed. Estimated gateway model cost from returned usage: $0.00061293, excluding Salad container cost.
+
+Evidence: `20261117_mechanism_{raw,receipt,verified}.json`; scorer: `scripts/harness_salad_mechanism_verify.py`.

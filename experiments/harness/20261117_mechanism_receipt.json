@@ -1,0 +1,16 @@
+{
+  "estimated_total_ceiling_usd": 0.2,
+  "group": "hermes-harness-mechanism-1117-a1",
+  "image_runtime_digest_attested": false,
+  "image_tag": "python:3.12-alpine",
+  "operator_result_sha256": "0334e9857c17ebef671a134caf5e0150cfae89ea477779da6d44495a034afbca",
+  "organization": "valoresearch",
+  "project": "exup",
+  "provider_result_sha256": "0334e9857c17ebef671a134caf5e0150cfae89ea477779da6d44495a034afbca",
+  "scientific_scope": "instruction-only, NOT Hermes CLI",
+  "source_commit": "aab9c963ef7aa22ecec7a7c1d9d436eb2baf9b2b",
+  "started": "2026-11-17T06:33:17Z",
+  "stopped": true,
+  "task_manifest_sha256": "8623d4fa55a7ec385ecd702ddc840941dc36556532f678cee43ece62517d96f7",
+  "worker_source_sha256": "4a63eeb10ca8a835bc713961ef9bcb6adcc4d27b014cc1e4c2e9a16a64a03f0c"
+}
