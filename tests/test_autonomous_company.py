@@ -460,6 +460,7 @@ class AutonomousCompanyTests(unittest.TestCase):
             profile_name="role-a",
             justyou_session_store=SessionStore(),
             justyou_resolver=Resolver(),
+            get_config=lambda name, default="": settings.get(name, default),
             handlers={},
         )
         ctx.register_tool = lambda name, toolset, schema, handler: ctx.handlers.__setitem__(name, handler)
