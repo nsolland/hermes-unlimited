@@ -1,0 +1,146 @@
+{
+  "date": "2026-11-16",
+  "hermes_version": "0.22.7",
+  "limitations": [
+    "The 11/12 seeds only randomize task order; model RNG seed was not pinned",
+    "Model version/default provider not pinned or recorded per invocation",
+    "Concurrent unrelated Hermes workloads were present on Mac",
+    "No direct proof that AGENTS.md content was present in each model context",
+    "Cost, interventions, restart and side effects were not measured",
+    "Only four elementary tasks repeated twice, no significance or causal inference"
+  ],
+  "machine": "mac",
+  "source_raw_sha256": "e8242bd024951a8d587dbb323eb4e8fb56ae57d7dfb35866e05bd5accecbc5ca",
+  "summary": {
+    "baseline": {
+      "average_runtime_seconds": 41.19,
+      "completion_rate": 0.75,
+      "correct": 3,
+      "n": 4,
+      "timeouts": 1
+    },
+    "checker": {
+      "average_runtime_seconds": 52.404,
+      "completion_rate": 0.25,
+      "correct": 1,
+      "n": 4,
+      "timeouts": 3
+    }
+  },
+  "timeout_seconds": 65,
+  "trial_order_seed": 12,
+  "trials": [
+    {
+      "actual": "",
+      "arm": "checker",
+      "exit_code": 124,
+      "expected": "147-nemul",
+      "note": "Cost and resume behavior unmeasured; scope refers only to exact output format; seed is trial identifier, not guaranteed model RNG seed",
+      "oracle_match": false,
+      "seconds": 65.104,
+      "seed": 12,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "task": "reverse",
+      "timed_out": true
+    },
+    {
+      "actual": "",
+      "arm": "checker",
+      "exit_code": 124,
+      "expected": "650",
+      "note": "Cost and resume behavior unmeasured; scope refers only to exact output format; seed is trial identifier, not guaranteed model RNG seed",
+      "oracle_match": false,
+      "seconds": 65.082,
+      "seed": 12,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "task": "squares",
+      "timed_out": true
+    },
+    {
+      "actual": "650",
+      "arm": "baseline",
+      "exit_code": 0,
+      "expected": "650",
+      "note": "Cost and resume behavior unmeasured; scope refers only to exact output format; seed is trial identifier, not guaranteed model RNG seed",
+      "oracle_match": true,
+      "seconds": 17.818,
+      "seed": 12,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "1c0373d3a1fc85a4b7ef15b95acf4ab22965ecf9953086a61358e1f99c36be5d",
+      "task": "squares",
+      "timed_out": false
+    },
+    {
+      "actual": "5",
+      "arm": "baseline",
+      "exit_code": 0,
+      "expected": "5",
+      "note": "Cost and resume behavior unmeasured; scope refers only to exact output format; seed is trial identifier, not guaranteed model RNG seed",
+      "oracle_match": true,
+      "seconds": 48.488,
+      "seed": 12,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "f0b5c2c2211c8d67ed15e75e656c7862d086e9245420892a7de62cd9ec582a06",
+      "task": "logic",
+      "timed_out": false
+    },
+    {
+      "actual": "",
+      "arm": "baseline",
+      "exit_code": 124,
+      "expected": "-3,0,8,8,14,19",
+      "note": "Cost and resume behavior unmeasured; scope refers only to exact output format; seed is trial identifier, not guaranteed model RNG seed",
+      "oracle_match": false,
+      "seconds": 65.105,
+      "seed": 12,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "task": "sort",
+      "timed_out": true
+    },
+    {
+      "actual": "",
+      "arm": "checker",
+      "exit_code": 124,
+      "expected": "-3,0,8,8,14,19",
+      "note": "Cost and resume behavior unmeasured; scope refers only to exact output format; seed is trial identifier, not guaranteed model RNG seed",
+      "oracle_match": false,
+      "seconds": 65.145,
+      "seed": 12,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "task": "sort",
+      "timed_out": true
+    },
+    {
+      "actual": "147-nemul",
+      "arm": "baseline",
+      "exit_code": 0,
+      "expected": "147-nemul",
+      "note": "Cost and resume behavior unmeasured; scope refers only to exact output format; seed is trial identifier, not guaranteed model RNG seed",
+      "oracle_match": true,
+      "seconds": 33.349,
+      "seed": 12,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "7dc0df4d3eda168c6a9cb38ad9a2d0254da8458f380a277b70c9155aa35d8664",
+      "task": "reverse",
+      "timed_out": false
+    },
+    {
+      "actual": "5",
+      "arm": "checker",
+      "exit_code": 0,
+      "expected": "5",
+      "note": "Cost and resume behavior unmeasured; scope refers only to exact output format; seed is trial identifier, not guaranteed model RNG seed",
+      "oracle_match": true,
+      "seconds": 14.287,
+      "seed": 12,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "f0b5c2c2211c8d67ed15e75e656c7862d086e9245420892a7de62cd9ec582a06",
+      "task": "logic",
+      "timed_out": false
+    }
+  ]
+}

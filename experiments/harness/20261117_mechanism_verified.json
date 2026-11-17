@@ -1,0 +1,299 @@
+{
+  "by_arm": {
+    "baseline": {
+      "errors": 0,
+      "exact": 8,
+      "final_answer": 8,
+      "input_tokens_mean": 52.667,
+      "latency_seconds_mean": 1.318,
+      "n": 24,
+      "output_tokens_mean": 3.417
+    },
+    "decompose": {
+      "errors": 0,
+      "exact": 8,
+      "final_answer": 8,
+      "input_tokens_mean": 71.667,
+      "latency_seconds_mean": 1.291,
+      "n": 24,
+      "output_tokens_mean": 3.292
+    },
+    "length_control": {
+      "errors": 0,
+      "exact": 12,
+      "final_answer": 12,
+      "input_tokens_mean": 73.667,
+      "latency_seconds_mean": 1.378,
+      "n": 24,
+      "output_tokens_mean": 3.375
+    },
+    "self_consistency": {
+      "errors": 0,
+      "exact": 5,
+      "final_answer": 5,
+      "input_tokens_mean": 75.667,
+      "latency_seconds_mean": 1.679,
+      "n": 24,
+      "output_tokens_mean": 29.292
+    },
+    "verify": {
+      "errors": 0,
+      "exact": 7,
+      "final_answer": 11,
+      "input_tokens_mean": 75.667,
+      "latency_seconds_mean": 1.473,
+      "n": 24,
+      "output_tokens_mean": 11.5
+    }
+  },
+  "by_task": {
+    "count": {
+      "baseline": {
+        "distinct_answers": [
+          "12"
+        ],
+        "exact": 0,
+        "final_answer": 0
+      },
+      "decompose": {
+        "distinct_answers": [
+          "14"
+        ],
+        "exact": 4,
+        "final_answer": 4
+      },
+      "length_control": {
+        "distinct_answers": [
+          "14"
+        ],
+        "exact": 4,
+        "final_answer": 4
+      },
+      "self_consistency": {
+        "distinct_answers": [
+          "14",
+          "7"
+        ],
+        "exact": 3,
+        "final_answer": 3
+      },
+      "verify": {
+        "distinct_answers": [
+          "4"
+        ],
+        "exact": 0,
+        "final_answer": 0
+      }
+    },
+    "logic": {
+      "baseline": {
+        "distinct_answers": [
+          "10"
+        ],
+        "exact": 0,
+        "final_answer": 0
+      },
+      "decompose": {
+        "distinct_answers": [
+          "2",
+          "4"
+        ],
+        "exact": 0,
+        "final_answer": 0
+      },
+      "length_control": {
+        "distinct_answers": [
+          "10"
+        ],
+        "exact": 0,
+        "final_answer": 0
+      },
+      "self_consistency": {
+        "distinct_answers": [
+          "2",
+          "3"
+        ],
+        "exact": 0,
+        "final_answer": 0
+      },
+      "verify": {
+        "distinct_answers": [
+          "3",
+          "5"
+        ],
+        "exact": 3,
+        "final_answer": 3
+      }
+    },
+    "modulus": {
+      "baseline": {
+        "distinct_answers": [
+          "11"
+        ],
+        "exact": 0,
+        "final_answer": 0
+      },
+      "decompose": {
+        "distinct_answers": [
+          "10",
+          "7"
+        ],
+        "exact": 0,
+        "final_answer": 0
+      },
+      "length_control": {
+        "distinct_answers": [
+          "10",
+          "9"
+        ],
+        "exact": 0,
+        "final_answer": 0
+      },
+      "self_consistency": {
+        "distinct_answers": [
+          "0",
+          "To find the remainder when 1001 is divided by 13, we can use two independent approaches.\n\n**Approach 1: Direct Division**\nWe perform the division $1001 \\div 13$.\n- $13 \\times 70 = 910$\n- $1001 - 910 = 91$\n- Now divide the remainder 91 by 13: $91 \\div 13 = 7$\n- So, $1001 = 13 \\times 70 + 91 = 13 \\times 70 + 13 \\times 7 = 13 \\times (70 + 7"
+        ],
+        "exact": 2,
+        "final_answer": 2
+      },
+      "verify": {
+        "distinct_answers": [
+          "1001 divided by 13 is 77 with a remainder of 0.\nVerification: $13 \\times 77 = 1001$. Since the division is exact, the remainder is 0.\n\n0"
+        ],
+        "exact": 0,
+        "final_answer": 4
+      }
+    },
+    "squares": {
+      "baseline": {
+        "distinct_answers": [
+          "650"
+        ],
+        "exact": 4,
+        "final_answer": 4
+      },
+      "decompose": {
+        "distinct_answers": [
+          "1012",
+          "506"
+        ],
+        "exact": 0,
+        "final_answer": 0
+      },
+      "length_control": {
+        "distinct_answers": [
+          "650"
+        ],
+        "exact": 4,
+        "final_answer": 4
+      },
+      "self_consistency": {
+        "distinct_answers": [
+          "1144",
+          "To calculate the sum of $i^2$ for integers $i$ from 1 to 12, we can use two approaches: direct summation and the summation formula.\n\n**Approach 1: Direct Summation**\nWe calculate each term $i^2$ and add them up:\n- $1^2 = 1$\n- $2^2 = 4$\n- $3^2 = 9$\n- $4^2 = 16$\n- $5^2 = 25$\n- $6^2 = 36$\n- $7^2 = 49$\n- $8^2 = 64$\n- $9^2 = 81"
+        ],
+        "exact": 0,
+        "final_answer": 0
+      },
+      "verify": {
+        "distinct_answers": [
+          "546"
+        ],
+        "exact": 0,
+        "final_answer": 0
+      }
+    },
+    "sum": {
+      "baseline": {
+        "distinct_answers": [
+          "140"
+        ],
+        "exact": 4,
+        "final_answer": 4
+      },
+      "decompose": {
+        "distinct_answers": [
+          "140"
+        ],
+        "exact": 4,
+        "final_answer": 4
+      },
+      "length_control": {
+        "distinct_answers": [
+          "140"
+        ],
+        "exact": 4,
+        "final_answer": 4
+      },
+      "self_consistency": {
+        "distinct_answers": [
+          "100"
+        ],
+        "exact": 0,
+        "final_answer": 0
+      },
+      "verify": {
+        "distinct_answers": [
+          "140"
+        ],
+        "exact": 4,
+        "final_answer": 4
+      }
+    },
+    "weekday": {
+      "baseline": {
+        "distinct_answers": [
+          "TUESDAY",
+          "Tuesday"
+        ],
+        "exact": 0,
+        "final_answer": 0
+      },
+      "decompose": {
+        "distinct_answers": [
+          "TUESDAY"
+        ],
+        "exact": 0,
+        "final_answer": 0
+      },
+      "length_control": {
+        "distinct_answers": [
+          "TUESDAY"
+        ],
+        "exact": 0,
+        "final_answer": 0
+      },
+      "self_consistency": {
+        "distinct_answers": [
+          "MONDAY",
+          "TUESDAY"
+        ],
+        "exact": 0,
+        "final_answer": 0
+      },
+      "verify": {
+        "distinct_answers": [
+          "SUNDAY",
+          "TUESDAY"
+        ],
+        "exact": 0,
+        "final_answer": 0
+      }
+    }
+  },
+  "claim_limit": "Behavioral output test only; no hidden activations, causal representation or Hermes CLI harness execution.",
+  "contrasts_exact_pp": {
+    "decompose_minus_baseline": 0.0,
+    "length_control_minus_baseline": 16.67,
+    "self_consistency_minus_baseline": -12.5,
+    "verify_minus_baseline": -4.17
+  },
+  "model_reported": [
+    "qwen3.5-9b"
+  ],
+  "n": 120,
+  "provider_group": "hermes-harness-mechanism-1117-a1",
+  "source_commit": "aab9c963ef7aa22ecec7a7c1d9d436eb2baf9b2b",
+  "stopped": true
+}

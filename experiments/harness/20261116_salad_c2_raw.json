@@ -1,0 +1,797 @@
+{
+  "classification": "SALAD_GATEWAY_INSTRUCTION_ABLATION_NOT_HERMES_CLI",
+  "execution_environment": "SALAD",
+  "experiment": "HERMES-HARNESS-SALAD-01",
+  "limitations": [
+    "Salad AI Gateway prompt comparison, not Hermes agent harness execution",
+    "Host container runtime not independently hardware-attested",
+    "No actual AGENTS.md file loading (instructions sent in API system messages)",
+    "No model internal RNG seed; no proof of backend node identity",
+    "Gateway billing estimates not provider invoice and container costs separate"
+  ],
+  "max_requests": 40,
+  "model_requested": "qwen3.5-9b",
+  "model_rng_pinned": false,
+  "model_usage_complete": true,
+  "observed_model_cost_usd": "0.00016935",
+  "order_seed": 1118,
+  "reserved_budget_ceiling_usd": "0.40",
+  "results": [
+    {
+      "answer_sha256": "68bc5ec90a2d9464eba42cbe67ccf5a442629e039a2e7d21942c0ea7420b4576",
+      "arm": "checker",
+      "elapsed_seconds": 0.935,
+      "error": null,
+      "estimated_usd": "0.00000429",
+      "exact_match": true,
+      "expected_sha256": "68bc5ec90a2d9464eba42cbe67ccf5a442629e039a2e7d21942c0ea7420b4576",
+      "model_requested": "qwen3.5-9b",
+      "model_returned": "qwen3.5-9b",
+      "observed_answer": "5040",
+      "task": "factorial",
+      "usage": {
+        "completion_tokens": 5,
+        "prompt_tokens": 64,
+        "prompt_tokens_details": null,
+        "total_tokens": 69
+      }
+    },
+    {
+      "answer_sha256": "7d8af1de1262f150187d5938bf649d6c35726970685f916d1ec6392a801b9762",
+      "arm": "baseline",
+      "elapsed_seconds": 0.902,
+      "error": null,
+      "estimated_usd": "0.00000342",
+      "exact_match": false,
+      "expected_sha256": "1b2f1a476cc4376c6abee9a533ff9ced40fa89a71d13edda44cafbe8966938a2",
+      "model_requested": "qwen3.5-9b",
+      "model_returned": "qwen3.5-9b",
+      "observed_answer": "Tuesday",
+      "task": "weekday",
+      "usage": {
+        "completion_tokens": 2,
+        "prompt_tokens": 54,
+        "prompt_tokens_details": null,
+        "total_tokens": 56
+      }
+    },
+    {
+      "answer_sha256": "2858dcd1057d3eae7f7d5f782167e24b61153c01551450a628cee722509f6529",
+      "arm": "checker",
+      "elapsed_seconds": 0.759,
+      "error": null,
+      "estimated_usd": "0.00000447",
+      "exact_match": true,
+      "expected_sha256": "2858dcd1057d3eae7f7d5f782167e24b61153c01551450a628cee722509f6529",
+      "model_requested": "qwen3.5-9b",
+      "model_returned": "qwen3.5-9b",
+      "observed_answer": "53",
+      "task": "binary",
+      "usage": {
+        "completion_tokens": 3,
+        "prompt_tokens": 70,
+        "prompt_tokens_details": null,
+        "total_tokens": 73
+      }
+    },
+    {
+      "answer_sha256": "f608627f979f1abef5a21941325e20cab3a7e7a7080a3fa933da82c561733f92",
+      "arm": "baseline",
+      "elapsed_seconds": 1.103,
+      "error": null,
+      "estimated_usd": "0.00000555",
+      "exact_match": true,
+      "expected_sha256": "f608627f979f1abef5a21941325e20cab3a7e7a7080a3fa933da82c561733f92",
+      "model_requested": "qwen3.5-9b",
+      "model_returned": "qwen3.5-9b",
+      "observed_answer": "-3,0,8,8,14,19",
+      "task": "sort",
+      "usage": {
+        "completion_tokens": 15,
+        "prompt_tokens": 70,
+        "prompt_tokens_details": null,
+        "total_tokens": 85
+      }
+    },
+    {
+      "answer_sha256": "864a936a35324151e1c79c44a2e903ff2497f52fa892282d340585f493c637f0",
+      "arm": "checker",
+      "elapsed_seconds": 0.879,
+      "error": null,
+      "estimated_usd": "0.00000459",
+      "exact_match": true,
+      "expected_sha256": "864a936a35324151e1c79c44a2e903ff2497f52fa892282d340585f493c637f0",
+      "model_requested": "qwen3.5-9b",
+      "model_returned": "qwen3.5-9b",
+      "observed_answer": "8192",
+      "task": "power",
+      "usage": {
+        "completion_tokens": 5,
+        "prompt_tokens": 69,
+        "prompt_tokens_details": null,
+        "total_tokens": 74
+      }
+    },
+    {
+      "answer_sha256": "ca60f1b27e0ab789535d857bca0432db5b4850fcdcc20ccbb1aacaa950ed89f7",
+      "arm": "baseline",
+      "elapsed_seconds": 0.761,
+      "error": null,
+      "estimated_usd": "0.00000363",
+      "exact_match": true,
+      "expected_sha256": "ca60f1b27e0ab789535d857bca0432db5b4850fcdcc20ccbb1aacaa950ed89f7",
+      "model_requested": "qwen3.5-9b",
+      "model_returned": "qwen3.5-9b",
+      "observed_answer": "ODD",
+      "task": "parity",
+      "usage": {
+        "completion_tokens": 3,
+        "prompt_tokens": 56,
+        "prompt_tokens_details": null,
+        "total_tokens": 59
+      }
+    },
+    {
+      "answer_sha256": "769e881d85fc5d27cb4cbc8382200d95b179cfdeb56e0b439da737069eaf8a5a",
+      "arm": "checker",
+      "elapsed_seconds": 0.629,
+      "error": null,
+      "estimated_usd": "0.00000438",
+      "exact_match": true,
+      "expected_sha256": "769e881d85fc5d27cb4cbc8382200d95b179cfdeb56e0b439da737069eaf8a5a",
+      "model_requested": "qwen3.5-9b",
+      "model_returned": "qwen3.5-9b",
+      "observed_answer": "703",
+      "task": "multiply",
+      "usage": {
+        "completion_tokens": 4,
+        "prompt_tokens": 67,
+        "prompt_tokens_details": null,
+        "total_tokens": 71
+      }
+    },
+    {
+      "answer_sha256": "096aa8510b0dc13190f1f237db8e29ad6ea34e2f779f2088c7826248535fbf6a",
+      "arm": "checker",
+      "elapsed_seconds": 0.845,
+      "error": null,
+      "estimated_usd": "0.00000432",
+      "exact_match": true,
+      "expected_sha256": "096aa8510b0dc13190f1f237db8e29ad6ea34e2f779f2088c7826248535fbf6a",
+      "model_requested": "qwen3.5-9b",
+      "model_returned": "qwen3.5-9b",
+      "observed_answer": "FF",
+      "task": "hex",
+      "usage": {
+        "completion_tokens": 2,
+        "prompt_tokens": 69,
+        "prompt_tokens_details": null,
+        "total_tokens": 71
+      }
+    },
+    {
+      "answer_sha256": "46584c88c62d575eca10a01b7c96b76ee70c876d24e57e8448b4fade22eba959",
+      "arm": "baseline",
+      "elapsed_seconds": 0.573,
+      "error": null,
+      "estimated_usd": "0.00000414",
+      "exact_match": true,
+      "expected_sha256": "46584c88c62d575eca10a01b7c96b76ee70c876d24e57e8448b4fade22eba959",
+      "model_requested": "qwen3.5-9b",
+      "model_returned": "qwen3.5-9b",
+      "observed_answer": "2,3",
+      "task": "set",
+      "usage": {
+        "completion_tokens": 4,
+        "prompt_tokens": 63,
+        "prompt_tokens_details": null,
+        "total_tokens": 67
+      }
+    },
+    {
+      "answer_sha256": "46584c88c62d575eca10a01b7c96b76ee70c876d24e57e8448b4fade22eba959",
+      "arm": "checker",
+      "elapsed_seconds": 0.804,
+      "error": null,
+      "estimated_usd": "0.00000552",
+      "exact_match": true,
+      "expected_sha256": "46584c88c62d575eca10a01b7c96b76ee70c876d24e57e8448b4fade22eba959",
+      "model_requested": "qwen3.5-9b",
+      "model_returned": "qwen3.5-9b",
+      "observed_answer": "2,3",
+      "task": "set",
+      "usage": {
+        "completion_tokens": 4,
+        "prompt_tokens": 86,
+        "prompt_tokens_details": null,
+        "total_tokens": 90
+      }
+    },
+    {
+      "answer_sha256": "73475cb40a568e8da8a045ced110137e159f890ac4da883b6b17dc651b3a8049",
+      "arm": "checker",
+      "elapsed_seconds": 0.618,
+      "error": null,
+      "estimated_usd": "0.00000465",
+      "exact_match": true,
+      "expected_sha256": "73475cb40a568e8da8a045ced110137e159f890ac4da883b6b17dc651b3a8049",
+      "model_requested": "qwen3.5-9b",
+      "model_returned": "qwen3.5-9b",
+      "observed_answer": "42",
+      "task": "gcd",
+      "usage": {
+        "completion_tokens": 3,
+        "prompt_tokens": 73,
+        "prompt_tokens_details": null,
+        "total_tokens": 76
+      }
+    },
+    {
+      "answer_sha256": "b8912e706c177501443d18a1a68db9bd0f295068211ef1f30ee9ca45c1a47b26",
+      "arm": "checker",
+      "elapsed_seconds": 2.064,
+      "error": null,
+      "estimated_usd": "0.00000915",
+      "exact_match": false,
+      "expected_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "model_requested": "qwen3.5-9b",
+      "model_returned": "qwen3.5-9b",
+      "observed_answer": "1001 divided by 13 is 77 with a remainder of 0.\nVerification: $13 \\times 77 = 1001$. Since the division is exact, the remainder is 0.\n\n0",
+      "task": "modulus",
+      "usage": {
+        "completion_tokens": 53,
+        "prompt_tokens": 73,
+        "prompt_tokens_details": null,
+        "total_tokens": 126
+      }
+    },
+    {
+      "answer_sha256": "f9171164593756e56fb197327b529a4955590566560dbe62d586bff41be9d297",
+      "arm": "checker",
+      "elapsed_seconds": 0.948,
+      "error": null,
+      "estimated_usd": "0.00000462",
+      "exact_match": true,
+      "expected_sha256": "f9171164593756e56fb197327b529a4955590566560dbe62d586bff41be9d297",
+      "model_requested": "qwen3.5-9b",
+      "model_returned": "qwen3.5-9b",
+      "observed_answer": "YES",
+      "task": "palindrome",
+      "usage": {
+        "completion_tokens": 2,
+        "prompt_tokens": 74,
+        "prompt_tokens_details": null,
+        "total_tokens": 76
+      }
+    },
+    {
+      "answer_sha256": "4110d4c5e3e5a159db617be082ec57dbdc1ac71632ccb7e3b508346b2df82fa8",
+      "arm": "checker",
+      "elapsed_seconds": 0.743,
+      "error": null,
+      "estimated_usd": "0.00000513",
+      "exact_match": true,
+      "expected_sha256": "4110d4c5e3e5a159db617be082ec57dbdc1ac71632ccb7e3b508346b2df82fa8",
+      "model_requested": "qwen3.5-9b",
+      "model_returned": "qwen3.5-9b",
+      "observed_answer": "147-nemul",
+      "task": "reverse",
+      "usage": {
+        "completion_tokens": 7,
+        "prompt_tokens": 75,
+        "prompt_tokens_details": null,
+        "total_tokens": 82
+      }
+    },
+    {
+      "answer_sha256": "f9171164593756e56fb197327b529a4955590566560dbe62d586bff41be9d297",
+      "arm": "baseline",
+      "elapsed_seconds": 0.829,
+      "error": null,
+      "estimated_usd": "0.00000324",
+      "exact_match": true,
+      "expected_sha256": "f9171164593756e56fb197327b529a4955590566560dbe62d586bff41be9d297",
+      "model_requested": "qwen3.5-9b",
+      "model_returned": "qwen3.5-9b",
+      "observed_answer": "YES",
+      "task": "palindrome",
+      "usage": {
+        "completion_tokens": 2,
+        "prompt_tokens": 51,
+        "prompt_tokens_details": null,
+        "total_tokens": 53
+      }
+    },
+    {
+      "answer_sha256": "4638944f513c3d085af6e4f4942f5ed38e126164178a8a1b6b37ef2ae651e52f",
+      "arm": "checker",
+      "elapsed_seconds": 0.642,
+      "error": null,
+      "estimated_usd": "0.00000498",
+      "exact_match": false,
+      "expected_sha256": "1b2f1a476cc4376c6abee9a533ff9ced40fa89a71d13edda44cafbe8966938a2",
+      "model_requested": "qwen3.5-9b",
+      "model_returned": "qwen3.5-9b",
+      "observed_answer": "TUESDAY",
+      "task": "weekday",
+      "usage": {
+        "completion_tokens": 4,
+        "prompt_tokens": 77,
+        "prompt_tokens_details": null,
+        "total_tokens": 81
+      }
+    },
+    {
+      "answer_sha256": "ca60f1b27e0ab789535d857bca0432db5b4850fcdcc20ccbb1aacaa950ed89f7",
+      "arm": "checker",
+      "elapsed_seconds": 0.849,
+      "error": null,
+      "estimated_usd": "0.00000501",
+      "exact_match": true,
+      "expected_sha256": "ca60f1b27e0ab789535d857bca0432db5b4850fcdcc20ccbb1aacaa950ed89f7",
+      "model_requested": "qwen3.5-9b",
+      "model_returned": "qwen3.5-9b",
+      "observed_answer": "ODD",
+      "task": "parity",
+      "usage": {
+        "completion_tokens": 3,
+        "prompt_tokens": 79,
+        "prompt_tokens_details": null,
+        "total_tokens": 82
+      }
+    },
+    {
+      "answer_sha256": "f9171164593756e56fb197327b529a4955590566560dbe62d586bff41be9d297",
+      "arm": "baseline",
+      "elapsed_seconds": 0.817,
+      "error": null,
+      "estimated_usd": "0.00000306",
+      "exact_match": true,
+      "expected_sha256": "f9171164593756e56fb197327b529a4955590566560dbe62d586bff41be9d297",
+      "model_requested": "qwen3.5-9b",
+      "model_returned": "qwen3.5-9b",
+      "observed_answer": "YES",
+      "task": "prime",
+      "usage": {
+        "completion_tokens": 2,
+        "prompt_tokens": 48,
+        "prompt_tokens_details": null,
+        "total_tokens": 50
+      }
+    },
+    {
+      "answer_sha256": "864a936a35324151e1c79c44a2e903ff2497f52fa892282d340585f493c637f0",
+      "arm": "baseline",
+      "elapsed_seconds": 0.856,
+      "error": null,
+      "estimated_usd": "0.00000321",
+      "exact_match": true,
+      "expected_sha256": "864a936a35324151e1c79c44a2e903ff2497f52fa892282d340585f493c637f0",
+      "model_requested": "qwen3.5-9b",
+      "model_returned": "qwen3.5-9b",
+      "observed_answer": "8192",
+      "task": "power",
+      "usage": {
+        "completion_tokens": 5,
+        "prompt_tokens": 46,
+        "prompt_tokens_details": null,
+        "total_tokens": 51
+      }
+    },
+    {
+      "answer_sha256": "68bc5ec90a2d9464eba42cbe67ccf5a442629e039a2e7d21942c0ea7420b4576",
+      "arm": "baseline",
+      "elapsed_seconds": 0.804,
+      "error": null,
+      "estimated_usd": "0.00000291",
+      "exact_match": true,
+      "expected_sha256": "68bc5ec90a2d9464eba42cbe67ccf5a442629e039a2e7d21942c0ea7420b4576",
+      "model_requested": "qwen3.5-9b",
+      "model_returned": "qwen3.5-9b",
+      "observed_answer": "5040",
+      "task": "factorial",
+      "usage": {
+        "completion_tokens": 5,
+        "prompt_tokens": 41,
+        "prompt_tokens_details": null,
+        "total_tokens": 46
+      }
+    },
+    {
+      "answer_sha256": "769e881d85fc5d27cb4cbc8382200d95b179cfdeb56e0b439da737069eaf8a5a",
+      "arm": "baseline",
+      "elapsed_seconds": 0.745,
+      "error": null,
+      "estimated_usd": "0.000003",
+      "exact_match": true,
+      "expected_sha256": "769e881d85fc5d27cb4cbc8382200d95b179cfdeb56e0b439da737069eaf8a5a",
+      "model_requested": "qwen3.5-9b",
+      "model_returned": "qwen3.5-9b",
+      "observed_answer": "703",
+      "task": "multiply",
+      "usage": {
+        "completion_tokens": 4,
+        "prompt_tokens": 44,
+        "prompt_tokens_details": null,
+        "total_tokens": 48
+      }
+    },
+    {
+      "answer_sha256": "4a44dc15364204a80fe80e9039455cc1608281820fe2b24f1e5233ade6af1dd5",
+      "arm": "baseline",
+      "elapsed_seconds": 0.82,
+      "error": null,
+      "estimated_usd": "0.00000369",
+      "exact_match": false,
+      "expected_sha256": "ef2d127de37b942baad06145e54b0c619a1f22327b2ebbcfbec78f5564afe39d",
+      "model_requested": "qwen3.5-9b",
+      "model_returned": "qwen3.5-9b",
+      "observed_answer": "10",
+      "task": "logic",
+      "usage": {
+        "completion_tokens": 3,
+        "prompt_tokens": 57,
+        "prompt_tokens_details": null,
+        "total_tokens": 60
+      }
+    },
+    {
+      "answer_sha256": "2099a9b5f777e242d1f9e19d27e232cc71e2fa7964fc988a319fce5671ca7f73",
+      "arm": "baseline",
+      "elapsed_seconds": 0.671,
+      "error": null,
+      "estimated_usd": "0.00000342",
+      "exact_match": true,
+      "expected_sha256": "2099a9b5f777e242d1f9e19d27e232cc71e2fa7964fc988a319fce5671ca7f73",
+      "model_requested": "qwen3.5-9b",
+      "model_returned": "qwen3.5-9b",
+      "observed_answer": "650",
+      "task": "squares",
+      "usage": {
+        "completion_tokens": 4,
+        "prompt_tokens": 51,
+        "prompt_tokens_details": null,
+        "total_tokens": 55
+      }
+    },
+    {
+      "answer_sha256": "6affdae3b3c1aa6aa7689e9b6a7b3225a636aa1ac0025f490cca1285ceaf1487",
+      "arm": "baseline",
+      "elapsed_seconds": 0.911,
+      "error": null,
+      "estimated_usd": "0.0000033",
+      "exact_match": true,
+      "expected_sha256": "6affdae3b3c1aa6aa7689e9b6a7b3225a636aa1ac0025f490cca1285ceaf1487",
+      "model_requested": "qwen3.5-9b",
+      "model_returned": "qwen3.5-9b",
+      "observed_answer": "124",
+      "task": "subtract",
+      "usage": {
+        "completion_tokens": 4,
+        "prompt_tokens": 49,
+        "prompt_tokens_details": null,
+        "total_tokens": 53
+      }
+    },
+    {
+      "answer_sha256": "f608627f979f1abef5a21941325e20cab3a7e7a7080a3fa933da82c561733f92",
+      "arm": "checker",
+      "elapsed_seconds": 0.957,
+      "error": null,
+      "estimated_usd": "0.00000693",
+      "exact_match": true,
+      "expected_sha256": "f608627f979f1abef5a21941325e20cab3a7e7a7080a3fa933da82c561733f92",
+      "model_requested": "qwen3.5-9b",
+      "model_returned": "qwen3.5-9b",
+      "observed_answer": "-3,0,8,8,14,19",
+      "task": "sort",
+      "usage": {
+        "completion_tokens": 15,
+        "prompt_tokens": 93,
+        "prompt_tokens_details": null,
+        "total_tokens": 108
+      }
+    },
+    {
+      "answer_sha256": "2c624232cdd221771294dfbb310aca000a0df6ac8b66b696d90ef06fdefb64a3",
+      "arm": "baseline",
+      "elapsed_seconds": 0.786,
+      "error": null,
+      "estimated_usd": "0.00000282",
+      "exact_match": true,
+      "expected_sha256": "2c624232cdd221771294dfbb310aca000a0df6ac8b66b696d90ef06fdefb64a3",
+      "model_requested": "qwen3.5-9b",
+      "model_returned": "qwen3.5-9b",
+      "observed_answer": "8",
+      "task": "length",
+      "usage": {
+        "completion_tokens": 2,
+        "prompt_tokens": 44,
+        "prompt_tokens_details": null,
+        "total_tokens": 46
+      }
+    },
+    {
+      "answer_sha256": "096aa8510b0dc13190f1f237db8e29ad6ea34e2f779f2088c7826248535fbf6a",
+      "arm": "baseline",
+      "elapsed_seconds": 0.767,
+      "error": null,
+      "estimated_usd": "0.00000294",
+      "exact_match": true,
+      "expected_sha256": "096aa8510b0dc13190f1f237db8e29ad6ea34e2f779f2088c7826248535fbf6a",
+      "model_requested": "qwen3.5-9b",
+      "model_returned": "qwen3.5-9b",
+      "observed_answer": "FF",
+      "task": "hex",
+      "usage": {
+        "completion_tokens": 2,
+        "prompt_tokens": 46,
+        "prompt_tokens_details": null,
+        "total_tokens": 48
+      }
+    },
+    {
+      "answer_sha256": "f9171164593756e56fb197327b529a4955590566560dbe62d586bff41be9d297",
+      "arm": "checker",
+      "elapsed_seconds": 0.693,
+      "error": null,
+      "estimated_usd": "0.00000444",
+      "exact_match": true,
+      "expected_sha256": "f9171164593756e56fb197327b529a4955590566560dbe62d586bff41be9d297",
+      "model_requested": "qwen3.5-9b",
+      "model_returned": "qwen3.5-9b",
+      "observed_answer": "YES",
+      "task": "prime",
+      "usage": {
+        "completion_tokens": 2,
+        "prompt_tokens": 71,
+        "prompt_tokens_details": null,
+        "total_tokens": 73
+      }
+    },
+    {
+      "answer_sha256": "4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a",
+      "arm": "checker",
+      "elapsed_seconds": 0.818,
+      "error": null,
+      "estimated_usd": "0.00000468",
+      "exact_match": false,
+      "expected_sha256": "8527a891e224136950ff32ca212b45bc93f69fbb801c3b1ebedac52775f99e61",
+      "model_requested": "qwen3.5-9b",
+      "model_returned": "qwen3.5-9b",
+      "observed_answer": "4",
+      "task": "count",
+      "usage": {
+        "completion_tokens": 2,
+        "prompt_tokens": 75,
+        "prompt_tokens_details": null,
+        "total_tokens": 77
+      }
+    },
+    {
+      "answer_sha256": "2858dcd1057d3eae7f7d5f782167e24b61153c01551450a628cee722509f6529",
+      "arm": "baseline",
+      "elapsed_seconds": 0.597,
+      "error": null,
+      "estimated_usd": "0.00000309",
+      "exact_match": true,
+      "expected_sha256": "2858dcd1057d3eae7f7d5f782167e24b61153c01551450a628cee722509f6529",
+      "model_requested": "qwen3.5-9b",
+      "model_returned": "qwen3.5-9b",
+      "observed_answer": "53",
+      "task": "binary",
+      "usage": {
+        "completion_tokens": 3,
+        "prompt_tokens": 47,
+        "prompt_tokens_details": null,
+        "total_tokens": 50
+      }
+    },
+    {
+      "answer_sha256": "4110d4c5e3e5a159db617be082ec57dbdc1ac71632ccb7e3b508346b2df82fa8",
+      "arm": "baseline",
+      "elapsed_seconds": 1.015,
+      "error": null,
+      "estimated_usd": "0.00000375",
+      "exact_match": true,
+      "expected_sha256": "4110d4c5e3e5a159db617be082ec57dbdc1ac71632ccb7e3b508346b2df82fa8",
+      "model_requested": "qwen3.5-9b",
+      "model_returned": "qwen3.5-9b",
+      "observed_answer": "147-nemul",
+      "task": "reverse",
+      "usage": {
+        "completion_tokens": 7,
+        "prompt_tokens": 52,
+        "prompt_tokens_details": null,
+        "total_tokens": 59
+      }
+    },
+    {
+      "answer_sha256": "ef2d127de37b942baad06145e54b0c619a1f22327b2ebbcfbec78f5564afe39d",
+      "arm": "checker",
+      "elapsed_seconds": 0.812,
+      "error": null,
+      "estimated_usd": "0.00000498",
+      "exact_match": true,
+      "expected_sha256": "ef2d127de37b942baad06145e54b0c619a1f22327b2ebbcfbec78f5564afe39d",
+      "model_requested": "qwen3.5-9b",
+      "model_returned": "qwen3.5-9b",
+      "observed_answer": "5",
+      "task": "logic",
+      "usage": {
+        "completion_tokens": 2,
+        "prompt_tokens": 80,
+        "prompt_tokens_details": null,
+        "total_tokens": 82
+      }
+    },
+    {
+      "answer_sha256": "38d66d9692ac590000a91b03a88da1c88d51fab2b78f63171f553ecc551a0c6f",
+      "arm": "checker",
+      "elapsed_seconds": 0.741,
+      "error": null,
+      "estimated_usd": "0.00000486",
+      "exact_match": false,
+      "expected_sha256": "dbae772db29058a88f9bd830e957c695347c41b6162a7eb9a9ea13def34be56b",
+      "model_requested": "qwen3.5-9b",
+      "model_returned": "qwen3.5-9b",
+      "observed_answer": "130",
+      "task": "sum",
+      "usage": {
+        "completion_tokens": 4,
+        "prompt_tokens": 75,
+        "prompt_tokens_details": null,
+        "total_tokens": 79
+      }
+    },
+    {
+      "answer_sha256": "73475cb40a568e8da8a045ced110137e159f890ac4da883b6b17dc651b3a8049",
+      "arm": "baseline",
+      "elapsed_seconds": 0.784,
+      "error": null,
+      "estimated_usd": "0.00000327",
+      "exact_match": true,
+      "expected_sha256": "73475cb40a568e8da8a045ced110137e159f890ac4da883b6b17dc651b3a8049",
+      "model_requested": "qwen3.5-9b",
+      "model_returned": "qwen3.5-9b",
+      "observed_answer": "42",
+      "task": "gcd",
+      "usage": {
+        "completion_tokens": 3,
+        "prompt_tokens": 50,
+        "prompt_tokens_details": null,
+        "total_tokens": 53
+      }
+    },
+    {
+      "answer_sha256": "6fc8f95bc6465849249d974d53eecc56c00ffda0fc3c7024bfa5b8e4d794b072",
+      "arm": "checker",
+      "elapsed_seconds": 0.662,
+      "error": null,
+      "estimated_usd": "0.0000048",
+      "exact_match": false,
+      "expected_sha256": "2099a9b5f777e242d1f9e19d27e232cc71e2fa7964fc988a319fce5671ca7f73",
+      "model_requested": "qwen3.5-9b",
+      "model_returned": "qwen3.5-9b",
+      "observed_answer": "546",
+      "task": "squares",
+      "usage": {
+        "completion_tokens": 4,
+        "prompt_tokens": 74,
+        "prompt_tokens_details": null,
+        "total_tokens": 78
+      }
+    },
+    {
+      "answer_sha256": "2c624232cdd221771294dfbb310aca000a0df6ac8b66b696d90ef06fdefb64a3",
+      "arm": "checker",
+      "elapsed_seconds": 0.756,
+      "error": null,
+      "estimated_usd": "0.0000042",
+      "exact_match": true,
+      "expected_sha256": "2c624232cdd221771294dfbb310aca000a0df6ac8b66b696d90ef06fdefb64a3",
+      "model_requested": "qwen3.5-9b",
+      "model_returned": "qwen3.5-9b",
+      "observed_answer": "8",
+      "task": "length",
+      "usage": {
+        "completion_tokens": 2,
+        "prompt_tokens": 67,
+        "prompt_tokens_details": null,
+        "total_tokens": 69
+      }
+    },
+    {
+      "answer_sha256": "6b51d431df5d7f141cbececcf79edf3dd861c3b4069f0b11661a3eefacbba918",
+      "arm": "baseline",
+      "elapsed_seconds": 0.607,
+      "error": null,
+      "estimated_usd": "0.00000339",
+      "exact_match": false,
+      "expected_sha256": "8527a891e224136950ff32ca212b45bc93f69fbb801c3b1ebedac52775f99e61",
+      "model_requested": "qwen3.5-9b",
+      "model_returned": "qwen3.5-9b",
+      "observed_answer": "12",
+      "task": "count",
+      "usage": {
+        "completion_tokens": 3,
+        "prompt_tokens": 52,
+        "prompt_tokens_details": null,
+        "total_tokens": 55
+      }
+    },
+    {
+      "answer_sha256": "736e537f0f664a3d8208e88c114f2c5a16fff5800e5c146b0b83b1c43213d003",
+      "arm": "checker",
+      "elapsed_seconds": 0.95,
+      "error": null,
+      "estimated_usd": "0.00000477",
+      "exact_match": false,
+      "expected_sha256": "6affdae3b3c1aa6aa7689e9b6a7b3225a636aa1ac0025f490cca1285ceaf1487",
+      "model_requested": "qwen3.5-9b",
+      "model_returned": "qwen3.5-9b",
+      "observed_answer": "1124",
+      "task": "subtract",
+      "usage": {
+        "completion_tokens": 5,
+        "prompt_tokens": 72,
+        "prompt_tokens_details": null,
+        "total_tokens": 77
+      }
+    },
+    {
+      "answer_sha256": "dbae772db29058a88f9bd830e957c695347c41b6162a7eb9a9ea13def34be56b",
+      "arm": "baseline",
+      "elapsed_seconds": 0.578,
+      "error": null,
+      "estimated_usd": "0.00000348",
+      "exact_match": true,
+      "expected_sha256": "dbae772db29058a88f9bd830e957c695347c41b6162a7eb9a9ea13def34be56b",
+      "model_requested": "qwen3.5-9b",
+      "model_returned": "qwen3.5-9b",
+      "observed_answer": "140",
+      "task": "sum",
+      "usage": {
+        "completion_tokens": 4,
+        "prompt_tokens": 52,
+        "prompt_tokens_details": null,
+        "total_tokens": 56
+      }
+    },
+    {
+      "answer_sha256": "4fc82b26aecb47d2868c4efbe3581732a3e7cbcc6c2efb32062c08170a05eeb8",
+      "arm": "baseline",
+      "elapsed_seconds": 0.813,
+      "error": null,
+      "estimated_usd": "0.00000327",
+      "exact_match": false,
+      "expected_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "model_requested": "qwen3.5-9b",
+      "model_returned": "qwen3.5-9b",
+      "observed_answer": "11",
+      "task": "modulus",
+      "usage": {
+        "completion_tokens": 3,
+        "prompt_tokens": 50,
+        "prompt_tokens_details": null,
+        "total_tokens": 53
+      }
+    }
+  ],
+  "summary": {
+    "baseline": {
+      "correct": 16,
+      "errors": 0,
+      "mean_seconds": 0.787,
+      "n": 20
+    },
+    "checker": {
+      "correct": 14,
+      "errors": 0,
+      "mean_seconds": 0.855,
+      "n": 20
+    }
+  },
+  "task_manifest_sha256": "8623d4fa55a7ec385ecd702ddc840941dc36556532f678cee43ece62517d96f7",
+  "temperature": 0
+}

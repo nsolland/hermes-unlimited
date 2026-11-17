@@ -1,0 +1,14 @@
+{
+  "classification": "NO_MODEL_RUN_ALLOCATION_TIMEOUT",
+  "container_status_after_shutdown": "stopped",
+  "experiment": "HERMES_CLI_SALAD_SMOKE_01",
+  "group": "hermes-cli-salad-1116-c1",
+  "model_invocations": 0,
+  "note": "Do not count as model outcome or treat as evidence of Hermes harness effect.",
+  "observation": "Salad did not allocate an instance within bounded 240 seconds",
+  "provider_result_received": false,
+  "recorded_by": "operator using independent Salad administrative readback",
+  "running_instances": 0,
+  "source_commit": "a22c6239654cd0729724e712baa38ed3fdb1b6c5",
+  "source_revision": "gateway UID 10000 ownership fix"
+}

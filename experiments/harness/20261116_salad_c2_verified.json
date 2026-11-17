@@ -1,0 +1,38 @@
+{
+  "by_arm": {
+    "baseline": {
+      "correct": 16,
+      "error_count": 0,
+      "mean_latency_seconds": 0.787,
+      "n": 20
+    },
+    "checker": {
+      "correct": 14,
+      "error_count": 0,
+      "mean_latency_seconds": 0.855,
+      "n": 20
+    }
+  },
+  "classification": "SALAD_INSTRUCTION_ABLATION_NOT_HERMES_CLI",
+  "delta_correct_fraction_checker_minus_baseline": -0.1,
+  "limitations": [
+    "temperature zero is not a pinned RNG",
+    "provider model string is not independent model weight attestation",
+    "direct Salad Gateway instruction experiment, not Hermes CLI agent",
+    "exact-match evaluates formatting as well as numerical validity",
+    "container and network costs not independently invoiced"
+  ],
+  "model_cost_usd_reported": "0.00016935",
+  "model_returned": {
+    "qwen3.5-9b": 40
+  },
+  "paired_baseline_only_correct": 3,
+  "paired_checker_only_correct": 1,
+  "paired_exact_mcnemar_p_exploratory": 0.625,
+  "provider_digest_verified": true,
+  "provider_group": "hermes-harness-salad-1116-c2",
+  "source_commit": "ae37924d8d872942ed4bc801f5c4fbe5c2087f76",
+  "stop_confirmed": true,
+  "task_digest_verified": true,
+  "usage_complete": true
+}

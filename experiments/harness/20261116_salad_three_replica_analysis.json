@@ -1,0 +1,168 @@
+{
+  "actual_model_requests": 120,
+  "bootstrap_iterations": 10000,
+  "by_arm": {
+    "baseline": {
+      "correct": 48,
+      "correct_fraction": 0.8,
+      "error_count": 0,
+      "mean_seconds": 1.1098,
+      "n": 60
+    },
+    "checker": {
+      "correct": 46,
+      "correct_fraction": 0.7666666666666667,
+      "error_count": 0,
+      "mean_seconds": 1.1479,
+      "n": 60
+    }
+  },
+  "checker_minus_baseline_correct_fraction": -0.0333,
+  "classification": "EXPLORATORY_SALAD_GATEWAY_INSTRUCTION_ABLATION",
+  "limitations": [
+    "Only 20 elementary tasks; task-cluster CI does not eliminate benchmark selection bias",
+    "Order seeds do not control model RNG or backend hardware",
+    "One first-run worker source commit differs solely from later parameterized order implementation",
+    "Not Hermes CLI; instructions sent as Salad Gateway system messages",
+    "No independent attestation of backend weights or hardware",
+    "Estimated model price excludes actual Salad container charges"
+  ],
+  "per_task": {
+    "binary": {
+      "baseline_correct": 3,
+      "checker_correct": 3,
+      "difference_mean": 0.0
+    },
+    "count": {
+      "baseline_correct": 0,
+      "checker_correct": 0,
+      "difference_mean": 0.0
+    },
+    "factorial": {
+      "baseline_correct": 3,
+      "checker_correct": 3,
+      "difference_mean": 0.0
+    },
+    "gcd": {
+      "baseline_correct": 3,
+      "checker_correct": 3,
+      "difference_mean": 0.0
+    },
+    "hex": {
+      "baseline_correct": 3,
+      "checker_correct": 3,
+      "difference_mean": 0.0
+    },
+    "length": {
+      "baseline_correct": 3,
+      "checker_correct": 3,
+      "difference_mean": 0.0
+    },
+    "logic": {
+      "baseline_correct": 0,
+      "checker_correct": 3,
+      "difference_mean": 1.0
+    },
+    "modulus": {
+      "baseline_correct": 0,
+      "checker_correct": 0,
+      "difference_mean": 0.0
+    },
+    "multiply": {
+      "baseline_correct": 3,
+      "checker_correct": 3,
+      "difference_mean": 0.0
+    },
+    "palindrome": {
+      "baseline_correct": 3,
+      "checker_correct": 3,
+      "difference_mean": 0.0
+    },
+    "parity": {
+      "baseline_correct": 3,
+      "checker_correct": 3,
+      "difference_mean": 0.0
+    },
+    "power": {
+      "baseline_correct": 3,
+      "checker_correct": 3,
+      "difference_mean": 0.0
+    },
+    "prime": {
+      "baseline_correct": 3,
+      "checker_correct": 3,
+      "difference_mean": 0.0
+    },
+    "reverse": {
+      "baseline_correct": 3,
+      "checker_correct": 3,
+      "difference_mean": 0.0
+    },
+    "set": {
+      "baseline_correct": 3,
+      "checker_correct": 3,
+      "difference_mean": 0.0
+    },
+    "sort": {
+      "baseline_correct": 3,
+      "checker_correct": 3,
+      "difference_mean": 0.0
+    },
+    "squares": {
+      "baseline_correct": 3,
+      "checker_correct": 0,
+      "difference_mean": -1.0
+    },
+    "subtract": {
+      "baseline_correct": 3,
+      "checker_correct": 2,
+      "difference_mean": -0.3333
+    },
+    "sum": {
+      "baseline_correct": 3,
+      "checker_correct": 2,
+      "difference_mean": -0.3333
+    },
+    "weekday": {
+      "baseline_correct": 0,
+      "checker_correct": 0,
+      "difference_mean": 0.0
+    }
+  },
+  "replicas": 3,
+  "reported_gateway_model_usd": "0.00050364",
+  "source_rounds": [
+    {
+      "label": "a1",
+      "provider_group": "hermes-harness-salad-1116-a1",
+      "result_raw_sha256": "ebb1394d29e5d92785ee97eea7e950cd797f90869f11ec983f9120303d77dac8",
+      "source_commit": "8ad8ec78d89b99b4fe1ebdf41b0da9805702b3a0",
+      "stop_verified": true
+    },
+    {
+      "label": "b2",
+      "provider_group": "hermes-harness-salad-1116-b2",
+      "result_raw_sha256": "198229d7ba7f5f0521b9d78cfb7551bb4b4c329c5e7e06f5aceb1c29815147d8",
+      "source_commit": "ae37924d8d872942ed4bc801f5c4fbe5c2087f76",
+      "stop_verified": true
+    },
+    {
+      "label": "c2",
+      "provider_group": "hermes-harness-salad-1116-c2",
+      "result_raw_sha256": "098820bce5d88f0cac5a930a06c35e5f4814de710cef002ec8bb2601438f8cb3",
+      "source_commit": "ae37924d8d872942ed4bc801f5c4fbe5c2087f76",
+      "stop_verified": true
+    }
+  ],
+  "task_cluster_bootstrap_95_percentile_interval": [
+    -0.1833,
+    0.1167
+  ],
+  "task_order_seeds": [
+    1116,
+    1117,
+    1118
+  ],
+  "unique_tasks": 20,
+  "usage_complete": true
+}

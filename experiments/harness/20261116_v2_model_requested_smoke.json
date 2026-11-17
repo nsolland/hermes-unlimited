@@ -1,0 +1,144 @@
+{
+  "claimed_model": "MiniMax-M2.7",
+  "claimed_provider": "nous",
+  "cli_invocations": 4,
+  "completed_or_timeout": true,
+  "conclusion": "2/2 exact successes per arm; no demonstrated completion uplift; runtimes are confounded by machine load and no provider response attestation.",
+  "concurrent_load_isolated": false,
+  "costs_measured": false,
+  "host_platform": "Linux-7.0.0-43-generic-x86_64-with-glibc2.39",
+  "limitations": [
+    "Explicit provider/model requested but response metadata not independently verified",
+    "AGENTS.md loading not attested per invocation",
+    "No model RNG control",
+    "No resource isolation or cost meter",
+    "Run is exploratory, not causal"
+  ],
+  "model": "MiniMax-M2.7",
+  "model_explicitly_requested": true,
+  "model_rng_seed_controlled": false,
+  "paired": {
+    "baseline": "baseline",
+    "cost_usd_delta": null,
+    "interventions_delta": null,
+    "n_pairs": 2,
+    "runtime_seconds_delta": -21.19487750600092,
+    "treatment": "checker",
+    "verified_completion_delta": 0.0
+  },
+  "protocol": "hermes-harness-mini-v2",
+  "provenance_caveat": "Runner file modified while process was active; recorded checksum matches file at result-write time, not a provable launch-time snapshot. A subsequent change moves hash capture to launch. No effective model/provider attestation.",
+  "provider": "nous",
+  "provider_resolution_independently_verified": false,
+  "python_version": "3.12.3",
+  "records": [
+    {
+      "actual": "140",
+      "arm": "baseline",
+      "exit_code": 0,
+      "expected": "140",
+      "note": "Cost and resume behavior unmeasured; scope refers only to exact output format; seed is trial identifier, not guaranteed model RNG seed",
+      "oracle_match": true,
+      "seconds": 48.722,
+      "seed": 21,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "251afbc1fe2e0118f21efcd99a65edefb597b294c5b10ed79b7c46017614e8db",
+      "task": "sum",
+      "timed_out": false
+    },
+    {
+      "actual": "42",
+      "arm": "baseline",
+      "exit_code": 0,
+      "expected": "42",
+      "note": "Cost and resume behavior unmeasured; scope refers only to exact output format; seed is trial identifier, not guaranteed model RNG seed",
+      "oracle_match": true,
+      "seconds": 51.717,
+      "seed": 21,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "084c799cd551dd1d8d5c5f9a5d593b2e931f5e36122ee5c793c1d08a19839cc0",
+      "task": "gcd",
+      "timed_out": false
+    },
+    {
+      "actual": "42",
+      "arm": "checker",
+      "exit_code": 0,
+      "expected": "42",
+      "note": "Cost and resume behavior unmeasured; scope refers only to exact output format; seed is trial identifier, not guaranteed model RNG seed",
+      "oracle_match": true,
+      "seconds": 45.652,
+      "seed": 21,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "084c799cd551dd1d8d5c5f9a5d593b2e931f5e36122ee5c793c1d08a19839cc0",
+      "task": "gcd",
+      "timed_out": false
+    },
+    {
+      "actual": "140",
+      "arm": "checker",
+      "exit_code": 0,
+      "expected": "140",
+      "note": "Cost and resume behavior unmeasured; scope refers only to exact output format; seed is trial identifier, not guaranteed model RNG seed",
+      "oracle_match": true,
+      "seconds": 12.396,
+      "seed": 21,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "251afbc1fe2e0118f21efcd99a65edefb597b294c5b10ed79b7c46017614e8db",
+      "task": "sum",
+      "timed_out": false
+    }
+  ],
+  "rng_seed_control_verified": false,
+  "rule_injection_independently_verified": false,
+  "runner_sha256": "2f45ede07879f78adf02fa78320f8d02e30a9f8681835bf1c2f94fad88362fa3",
+  "source_raw_sha256": "e4ec05f4a995ddbb63567b253bb8a586dad0e94ed3989a9586755997f8d73064",
+  "summary": {
+    "baseline": {
+      "claimed_goal_rate": 1.0,
+      "mean_cost_usd": null,
+      "mean_interventions": null,
+      "mean_runtime_seconds": 50.21927548450185,
+      "n": 2,
+      "resume_rate": null,
+      "scope_preservation_rate": 1.0,
+      "task_seed_pairs": [
+        [
+          "gcd",
+          21
+        ],
+        [
+          "sum",
+          21
+        ]
+      ],
+      "verified_completion_rate": 1.0
+    },
+    "checker": {
+      "claimed_goal_rate": 1.0,
+      "mean_cost_usd": null,
+      "mean_interventions": null,
+      "mean_runtime_seconds": 29.02439797850093,
+      "n": 2,
+      "resume_rate": null,
+      "scope_preservation_rate": 1.0,
+      "task_seed_pairs": [
+        [
+          "gcd",
+          21
+        ],
+        [
+          "sum",
+          21
+        ]
+      ],
+      "verified_completion_rate": 1.0
+    }
+  },
+  "tasks": [
+    "gcd",
+    "sum"
+  ],
+  "tasks_sha256": "73bacfdfa52e17b91b972b08ff73a396624a19ba7eef4e81088faf5ec3dec819",
+  "trial_identifier": 21
+}
