@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "name": "Hermes-Salad-observed-paired-cost-and-quality-20261116",
+  "python_version": "3.12",
+  "files": {
+    "scripts/harness_salad_verify.py": "ce7bd508dd4aec8598959e89ec109423e5b2c7f4ef9252e82ed0442525b7a834",
+    "scripts/reprobridge_harness_outcomes.py": "637ac6346a4dc51d652ccbd3a91a9821666a2fea3ea7a64aa12d3efa0fda980d",
+    "tests/test_reprobridge_harness_outcomes.py": "c075b3cde79e3d4094cd8bb6376732fd66f676b361db621bd16f4fac362f712b",
+    "experiments/harness/20261116_salad_a1_raw.json": "ebb1394d29e5d92785ee97eea7e950cd797f90869f11ec983f9120303d77dac8",
+    "experiments/harness/20261116_salad_a1_receipt.json": "33121648161f85b49921d7344c45f63ac57f40460d69d3d9cb31b03516fabe4c",
+    "experiments/harness/tasks_v2.json": "8623d4fa55a7ec385ecd702ddc840941dc36556532f678cee43ece62517d96f7"
+  },
+  "steps": [
+    {
+      "argv": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests",
+        "-p",
+        "test_reprobridge_harness_outcomes.py",
+        "-v"
+      ],
+      "timeout_seconds": 60
+    },
+    {
+      "argv": [
+        "python3",
+        "scripts/reprobridge_harness_outcomes.py"
+      ],
+      "timeout_seconds": 60
+    }
+  ]
+}
