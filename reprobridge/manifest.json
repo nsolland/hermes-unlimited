@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "name": "Hermes-harness-outcome-analysis-v1",
+  "python_version": "3.12",
+  "files": {
+    "scripts/harness_analyze.py": "7c294b044ace49d71689cd3a9d0af0f0b1f936c547c89c4c3e9aa3913762b0ea",
+    "tests/test_harness_analyze.py": "e995014dd89e9cb806b0d2d39230a0af646beeb017643fb7c12e089441cb0124"
+  },
+  "steps": [
+    {
+      "argv": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests",
+        "-p",
+        "test_harness_analyze.py",
+        "-v"
+      ],
+      "timeout_seconds": 60
+    }
+  ]
+}
