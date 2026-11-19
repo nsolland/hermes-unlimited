@@ -178,6 +178,13 @@ This is the **product direction**, not a statement that every capability above i
 - `unlimited_company_task`
 - `unlimited_company_result`
 - `unlimited_a2ui_surface`
+- `unlimited_creative_render`
+- `unlimited_creative_result`
+- `unlimited_mission_run`
+- `unlimited_economic_evaluate`
+- `unlimited_memory_recall`
+- `unlimited_service_factory`
+- `unlimited_socratic_council`
 
 ## Trusted profile setup
 
